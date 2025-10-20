@@ -25,3 +25,13 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+Route::get('/payment/success', function (Illuminate\Http\Request $request) {
+    return Inertia::render('Payment/Success', [
+        'transaction_id' => $request->query('transaction_id')
+    ]);
+})->name('payment.success');
+
+Route::get('/payment/cancel', function () {
+    return Inertia::render('Payment/Cancel');
+})->name('payment.cancel');

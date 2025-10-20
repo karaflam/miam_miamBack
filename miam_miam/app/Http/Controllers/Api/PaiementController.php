@@ -11,39 +11,122 @@ use App\Services\PaiementService;
 use App\Services\FideliteService;
 use App\Services\CommandeService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class PaiementController extends Controller
 {
     public function initier(InitierPaiementRequest $request)
     {
-        $commande = Commande::findOrFail($request->commande_id);
+        try {
+            $commande = Commande::with('utilisateur')->findOrFail($request->commande_id);
 
-        if ($commande->id_utilisateur !== Auth::id()) {
-            return response()->json(['error' => 'Non autorisé'], 403);
+            // Vérifier que c'est bien la commande de l'utilisateur
+            if ($commande->id_utilisateur !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Non autorisé'
+                ], 403);
+            }
+
+            // Vérifier que la commande n'est pas déjà payée
+            if ($commande->statut_commande === 'validee') {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Cette commande est déjà payée'
+                ], 400);
+            }
+
+            $paiementService = app(PaiementService::class);
+            
+            // Paiement avec points
+            if ($request->methode_paiement === 'points') {
+                $result = $paiementService->payerAvecPoints(
+                    $commande, 
+                    $request->points_utilises ?? 0
+                );
+                
+                if ($result['success']) {
+                    $commande->update(['statut_commande' => 'validee']);
+                    app(FideliteService::class)->attribuerPoints($commande);
+                    app(CommandeService::class)->decrementerStock($commande);
+                }
+                
+                return response()->json($result);
+            }
+            
+            // Paiement CinetPay
+            $result = $paiementService->initierPaiement($commande, $request->methode_paiement);
+            
+            return response()->json($result);
+            
+        } catch (\Exception $e) {
+            Log::error('Erreur initiation paiement: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $paiementService = app(PaiementService::class);
-        $result = $paiementService->initierPaiement($commande, $request->methode_paiement);
-
-        return response()->json($result);
     }
 
     public function notify(Request $request)
     {
-        $transactionId = $request->cpm_trans_id;
+        Log::info('CinetPay Webhook reçu:', $request->all());
 
-        $paiement = Paiement::where('identifiant_transaction', $transactionId)->firstOrFail();
+        try {
+            $transactionId = $request->cpm_trans_id;
 
-        if ($request->cpm_result == '00') {
-            $paiement->update(['statut_paiement' => 'reussi']);
-            $commande = $paiement->commande;
-            $commande->update(['statut_commande' => 'validee']);
-            app(FideliteService::class)->attribuerPoints($commande);
-            app(CommandeService::class)->decrementerStock($commande);
-        } else {
-            $paiement->update(['statut_paiement' => 'echoue']);
+            if (!$transactionId) {
+                return response()->json(['status' => 'error', 'message' => 'Transaction ID manquant'], 400);
+            }
+
+            $paiement = Paiement::where('identifiant_transaction', $transactionId)->first();
+
+            if (!$paiement) {
+                Log::warning("Paiement introuvable pour transaction: {$transactionId}");
+                return response()->json(['status' => 'error', 'message' => 'Paiement non trouvé'], 404);
+            }
+
+            // Vérifier le statut auprès de CinetPay
+            $paiementService = app(PaiementService::class);
+            $statusCheck = $paiementService->verifierPaiement($transactionId);
+
+            if ($statusCheck['success'] && $statusCheck['status'] === 'ACCEPTED') {
+                $paiement->update(['statut_paiement' => 'reussi']);
+                
+                $commande = $paiement->commande;
+                $commande->update(['statut_commande' => 'validee']);
+                
+                // Attribuer points et décrémenter stock
+                app(FideliteService::class)->attribuerPoints($commande);
+                app(CommandeService::class)->decrementerStock($commande);
+                
+                Log::info("Paiement réussi pour commande #{$commande->id_commande}");
+            } else {
+                $paiement->update(['statut_paiement' => 'echoue']);
+                Log::warning("Paiement échoué pour transaction: {$transactionId}");
+            }
+
+            return response()->json(['status' => 'ok']);
+            
+        } catch (\Exception $e) {
+            Log::error('Erreur webhook CinetPay: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+    }
 
-        return response()->json(['status' => 'ok']);
+    public function verifier($transactionId)
+    {
+        try {
+            $paiementService = app(PaiementService::class);
+            $result = $paiementService->verifierPaiement($transactionId);
+            
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
