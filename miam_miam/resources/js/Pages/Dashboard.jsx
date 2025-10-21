@@ -6,6 +6,7 @@ import { useFidelite } from '@/hooks/useFidelite';
 export default function Dashboard() {
     const { auth } = usePage().props; // Récupérer les props Inertia, dont l'utilisateur
     const { points, valeur_fcfa, loading, error } = useFidelite();
+    const { code, filleuls, loading: loadingParrainage, error: errorParrainage } = useParrainage();
 
     return (
         <AuthenticatedLayout
@@ -39,6 +40,26 @@ export default function Dashboard() {
                                     <p className="text-sm opacity-90 mt-1">
                                         Partagez ce code pour parrainer vos amis !
                                     </p>
+                                </div>
+                                <div className="mt-4">
+                                    <h4 className="font-medium">Mes filleuls ({filleuls.length})</h4>
+
+                                    { loading && <p className="text-sm opacity-70">Chargement…</p> }
+                                    { error && <p className="text-sm text-red-500">{error}</p> }
+
+                                    { !loading && !error && (
+                                        <ul className="mt-2 space-y-2">
+                                            { filleuls.map(f => (
+                                                <li key={f.id} className="text-sm bg-white/10 p-2 rounded">
+                                                    <div className="flex justify-between">
+                                                        <span>{f.name || f.email}</span>
+                                                        <span className="opacity-80 text-xs">{new Date(f.created_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                </li>
+                                            )) }
+                                            { filleuls.length === 0 && <li className="text-sm opacity-80">Aucun filleul pour le moment</li> }
+                                        </ul>
+                                    )}
                                 </div>
                                 <div className="text-right">
                                     <div className="bg-white/20 rounded-full p-3">
