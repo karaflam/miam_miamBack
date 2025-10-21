@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ParrainageController;
 // Routes publiques
 Route::prefix('menu')->group(function () {
     Route::get('/', [MenuController::class, 'index']);
+    Route::get('/categories', [MenuController::class, 'categories']);
 });
 
 // Webhook CinetPay (public, pas de auth)
