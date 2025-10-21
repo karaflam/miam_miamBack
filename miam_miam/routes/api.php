@@ -31,7 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/verifier/{transactionId}', [PaiementController::class, 'verifier']);
     });
     
-    // Fidélité
+    // Routes de fidélité
     Route::prefix('fidelite')->group(function () {
         Route::get('/solde', [FideliteController::class, 'solde']);
         Route::get('/historique', [FideliteController::class, 'historique']);
