@@ -2,9 +2,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
 import FideliteCard from '@/Components/FideliteCard';
 import { useFidelite } from '@/hooks/useFidelite';
+import { useParrainage } from '@/hooks/useParrainage'; // ✅ AJOUTER CETTE LIGNE
 
 export default function Dashboard() {
-    const { auth } = usePage().props; // Récupérer les props Inertia, dont l'utilisateur
+    const { auth } = usePage().props;
     const { points, valeur_fcfa, loading, error } = useFidelite();
     const { code, filleuls, loading: loadingParrainage, error: errorParrainage } = useParrainage();
 
@@ -21,7 +22,6 @@ export default function Dashboard() {
             <div className="py-12">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                        {/* Carte des points de fidélité */}
                         <FideliteCard 
                             points={points} 
                             valeur_fcfa={valeur_fcfa} 
@@ -29,46 +29,45 @@ export default function Dashboard() {
                             error={error} 
                         />
                         
-                        {/* Carte du parrainage */}
                         <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg p-6 text-white shadow-lg">
-                            <div className="flex items-center justify-between">
-                                <div>
+                            {loadingParrainage ? (
+                                <div className="animate-pulse">
+                                    <div className="h-4 bg-white/30 rounded w-1/3 mb-2"></div>
+                                    <div className="h-8 bg-white/30 rounded w-1/2"></div>
+                                </div>
+                            ) : errorParrainage ? (
+                                <p className="text-sm text-red-200">{errorParrainage}</p>
+                            ) : (
+                                <>
                                     <h3 className="text-lg font-semibold mb-1">Parrainage</h3>
                                     <div className="flex items-baseline">
-                                        <span className="text-2xl font-bold">{auth.user.code_parrainage}</span>
+                                        <span className="text-2xl font-bold">{code || auth.user.code_parrainage}</span>
                                     </div>
                                     <p className="text-sm opacity-90 mt-1">
                                         Partagez ce code pour parrainer vos amis !
                                     </p>
-                                </div>
-                                <div className="mt-4">
-                                    <h4 className="font-medium">Mes filleuls ({filleuls.length})</h4>
-
-                                    { loading && <p className="text-sm opacity-70">Chargement…</p> }
-                                    { error && <p className="text-sm text-red-500">{error}</p> }
-
-                                    { !loading && !error && (
+                                    
+                                    <div className="mt-4">
+                                        <h4 className="font-medium">Mes filleuls ({filleuls.length})</h4>
                                         <ul className="mt-2 space-y-2">
-                                            { filleuls.map(f => (
+                                            {filleuls.map(f => (
                                                 <li key={f.id} className="text-sm bg-white/10 p-2 rounded">
                                                     <div className="flex justify-between">
-                                                        <span>{f.name || f.email}</span>
-                                                        <span className="opacity-80 text-xs">{new Date(f.created_at).toLocaleDateString()}</span>
+                                                        <span>{f.nom} {f.prenom}</span>
+                                                        <span className="opacity-80 text-xs">
+                                                            {f.point_fidelite} pts
+                                                        </span>
                                                     </div>
                                                 </li>
-                                            )) }
-                                            { filleuls.length === 0 && <li className="text-sm opacity-80">Aucun filleul pour le moment</li> }
+                                            ))}
+                                            {filleuls.length === 0 && (
+                                                <li className="text-sm opacity-80">Aucun filleul pour le moment</li>
+                                            )}
                                         </ul>
-                                    )}
-                                </div>
-                                <div className="text-right">
-                                    <div className="bg-white/20 rounded-full p-3">
-                                        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
-                                        </svg>
                                     </div>
-                                </div>
-                            </div>
+                                </>
+                            )}
+                            
                             <div className="mt-4 pt-4 border-t border-white/20">
                                 <p className="text-xs opacity-75">
                                     🎁 5 points bonus pour chaque filleul qui passe sa première commande
@@ -77,7 +76,6 @@ export default function Dashboard() {
                         </div>
                     </div>
                     
-                    {/* Section d'informations générales */}
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg p-6 text-gray-900">
                         <h3 className="text-lg font-semibold mb-4">Bienvenue sur votre tableau de bord !</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

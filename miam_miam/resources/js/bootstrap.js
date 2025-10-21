@@ -4,17 +4,13 @@ import axios from 'axios';
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 axios.defaults.withCredentials = true;
 
-// Interceptor pour inclure le CSRF token
-axios.interceptors.request.use(config => {
-    const token = document.head.querySelector('meta[name="csrf-token"]');
-    
-    if (token) {
-        config.headers['X-CSRF-TOKEN'] = token.content;
-    } else {
-        console.warn('CSRF token not found');
-    }
-    
-    return config;
-});
+// Interceptor pour gérer automatiquement le CSRF token
+let token = document.head.querySelector('meta[name="csrf-token"]');
+
+if (token) {
+    axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
+} else {
+    console.error('CSRF token not found: https://laravel.com/docs/csrf#csrf-x-csrf-token');
+}
 
 export default axios;
