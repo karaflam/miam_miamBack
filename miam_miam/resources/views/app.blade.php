@@ -17,7 +17,7 @@
         @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
         @inertiaHead
 
-        <script>
+        <!-- <script>
         window.csrfToken = "{{ csrf_token() }}";
         window.axiosDefaults = {
             headers: {
@@ -25,7 +25,7 @@
                 'X-Requested-With': 'XMLHttpRequest'
             }
         };
-    </script>
+        </script> -->
     </head>
     <body class="font-sans antialiased">
         @inertia
