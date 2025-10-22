@@ -4,49 +4,44 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\PaiementController;
-use App\Http\Controllers\Api\FideliteController;
-use App\Http\Controllers\Api\ParrainageController;
-
-// Routes publiques
-Route::prefix('menu')->group(function () {
-    Route::get('/', [MenuController::class, 'index']);
+use App\Http\Controllers\Api\StatistiqueController;
+use App\Http\Controllers\Api\UsagePromoController;
+// Route test
+Route::get('/test', function () {
+    return response()->json(['message' => 'API fonctionne!']);
 });
 
-// Webhook CinetPay (public, pas de auth)
+// Routes publiques
+Route::get('/menu', [MenuController::class, 'index']);
+
+// Webhook CinetPay
 Route::post('/cinetpay/notify', [PaiementController::class, 'notify']);
 
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {
     
     // Commandes
-    Route::prefix('commandes')->group(function () {
-        Route::post('/', [CommandeController::class, 'store']);
-        Route::get('/mes-commandes', [CommandeController::class, 'index']);
-        Route::get('/{id}', [CommandeController::class, 'show']);
-    });
+    Route::post('/commandes', [CommandeController::class, 'store']);
+    Route::get('/commandes/mes-commandes', [CommandeController::class, 'index']);
+    Route::get('/commandes/{id}', [CommandeController::class, 'show']);
     
     // Paiements
-    Route::prefix('paiement')->group(function () {
-        Route::post('/initier', [PaiementController::class, 'initier']);
-        Route::get('/verifier/{transactionId}', [PaiementController::class, 'verifier']);
+    Route::post('/paiement/initier', [PaiementController::class, 'initier']);
+    Route::get('/paiement/verifier/{transactionId}', [PaiementController::class, 'verifier']);
+    
+    // Menu admin
+    Route::middleware('role:admin,employe')->group(function () {
+        Route::post('/menu', [MenuController::class, 'store']);
+        Route::put('/menu/{id}', [MenuController::class, 'update']);
+        Route::delete('/menu/{id}', [MenuController::class, 'destroy']);
     });
     
-    // Fidélité
-    Route::prefix('fidelite')->group(function () {
-        Route::get('/solde', [FideliteController::class, 'solde']);
-        Route::get('/historique', [FideliteController::class, 'historique']);
-    });
-    
-    // Parrainage
-    Route::prefix('parrainage')->group(function () {
-        Route::get('/mon-code', [ParrainageController::class, 'monCode']);
-        Route::get('/mes-filleuls', [ParrainageController::class, 'mesFilleuls']);
-    });
-    
-    // Menu (admin uniquement)
-    Route::middleware('role:admin,employe')->prefix('menu')->group(function () {
-        Route::post('/', [MenuController::class, 'store']);
-        Route::put('/{id}', [MenuController::class, 'update']);
-        Route::delete('/{id}', [MenuController::class, 'destroy']);
-    });
+    // Statistiques
+    Route::get('/statistiques/generales', [StatistiqueController::class, 'generales']);
+    Route::get('/statistiques/journalieres', [StatistiqueController::class, 'journalieres']);
+    Route::get('/statistiques/mensuelles', [StatistiqueController::class, 'mensuelles']);
+    Route::get('/statistiques/hebdomadaires', [StatistiqueController::class, 'hebdomadaires']);
+    Route::get('/statistiques/top-clients', [StatistiqueController::class, 'topClients']);
+    // Vérifiez que la route pointe vers le bon contrôleur
+Route::get('/usage-promo', [App\Http\Controllers\Api\UsagePromoController::class, 'index']);
 });

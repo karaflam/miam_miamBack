@@ -34,12 +34,12 @@ class Parrainage extends Model
      */
     public function parrain(): BelongsTo
     {
-        return $this->belongsTo(Utilisateur::class, 'id_parrain');
+        return $this->belongsTo(User::class, 'id_parrain');
     }
 
     public function filleul(): BelongsTo
     {
-        return $this->belongsTo(Utilisateur::class, 'id_filleul');
+        return $this->belongsTo(User::class, 'id_filleul');
     }
 
     public function suiviPoints(): HasMany

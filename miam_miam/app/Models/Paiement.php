@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Models\Utilisateur;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,6 @@ class Paiement extends Model
 
     public function utilisateur(): BelongsTo
     {
-        return $this->belongsTo(Utilisateur::class, 'id_utilisateur');
+        return $this->belongsTo(User::class, 'id_utilisateur');
     }
 }

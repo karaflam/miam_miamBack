@@ -27,6 +27,6 @@ class Consentement extends Model
      */
     public function utilisateur(): BelongsTo
     {
-        return $this->belongsTo(Utilisateur::class, 'id_utilisateur');
+        return $this->belongsTo(User::class, 'id_utilisateur');
     }
 }
