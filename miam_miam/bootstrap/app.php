@@ -16,6 +16,19 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        $middleware->api(prepend: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
+
+        // Important : Ajouter ces middlewares
+        $middleware->encryptCookies(except: [
+            //
+        ]);
+
+        $middleware->validateCsrfTokens(except: [
+            '/api/*', // Exclure les routes API du CSRF
+        ]);
+
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
