@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\StatistiqueController;
 use App\Http\Controllers\Api\UsagePromoController;
+use App\Http\Controllers\Api\FideliteController;
+use App\Http\Controllers\Api\ParrainageController;
 // Route test
 Route::get('/test', function () {
     return response()->json(['message' => 'API fonctionne!']);
@@ -34,6 +36,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/menu', [MenuController::class, 'store']);
         Route::put('/menu/{id}', [MenuController::class, 'update']);
         Route::delete('/menu/{id}', [MenuController::class, 'destroy']);
+    });
+
+    // Fidélité
+    Route::prefix('fidelite')->group(function () {
+        Route::get('/solde', [FideliteController::class, 'solde']);
+        Route::get('/historique', [FideliteController::class, 'historique']);
+    });
+    
+    // Parrainage
+    Route::prefix('parrainage')->group(function () {
+        Route::get('/mon-code', [ParrainageController::class, 'monCode']);
+        Route::get('/mes-filleuls', [ParrainageController::class, 'mesFilleuls']);
     });
     
     // Statistiques
