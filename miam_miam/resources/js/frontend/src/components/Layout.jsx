@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Outlet } from "react-router-dom"
 import Navbar from "./Navbar"
 import CookieBanner from "./CookieBanner"
+import PageTransition from "./PageTransition"
 
 export default function Layout() {
   const [showCookieBanner, setShowCookieBanner] = useState(!localStorage.getItem("cookiesAccepted"))
@@ -17,7 +18,9 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
       {showCookieBanner && <CookieBanner onAccept={handleAcceptCookies} />}
     </div>

@@ -2,19 +2,43 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Chart } from 'chart.js/auto'
-import { mockMenuItems as initialMenuItems, mockOrders as initialOrders, mockUsers } from "../data/mockData"
+import { mockMenuItems as initialMenuItems, mockOrders as initialOrders, mockUsers, mockPromotions as initialPromotions } from "../data/mockData"
 import EmployeeManagement from "../components/manager/EmployeeManagement"
 import { 
   DollarSign, TrendingUp, Users, ShoppingBag, Plus, Edit, Eye, EyeOff, 
   BarChart3, Package, UserPlus, AlertCircle, Clock, CheckCircle, 
   XCircle, Bell, Settings, Calendar, TrendingDown, Activity,
-  MessageSquare, Award, Gift, RefreshCw, Search, Filter, Trash2, UserCog
+  MessageSquare, Award, Gift, RefreshCw, Search, Filter, Trash2, UserCog, Tag
 } from "lucide-react"
+import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [menuItems, setMenuItems] = useState(initialMenuItems)
   const [orders, setOrders] = useState(initialOrders)
+  const [promotions, setPromotions] = useState(initialPromotions)
+  const [showPromoModal, setShowPromoModal] = useState(false)
+  const [editingPromo, setEditingPromo] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [roleFilter, setRoleFilter] = useState("all")
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [userFormData, setUserFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "student",
+    balance: 0,
+    loyaltyPoints: 0,
+  })
+  const [promoFormData, setPromoFormData] = useState({
+    title: "",
+    description: "",
+    discount: "",
+    active: true,
+    startDate: "",
+    endDate: "",
+  })
   const [employees] = useState([
     {
       id: "1",
@@ -271,6 +295,64 @@ export default function ManagerDashboard() {
     })
   }
 
+  // Fonctions de gestion des promotions
+  const handlePromoFormChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setPromoFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : name === "discount" ? Number.parseInt(value) || 0 : value,
+    }))
+  }
+
+  const handleAddPromo = () => {
+    const newPromo = {
+      id: Date.now().toString(),
+      ...promoFormData,
+    }
+    setPromotions([...promotions, newPromo])
+    setShowPromoModal(false)
+    resetPromoForm()
+  }
+
+  const handleEditPromo = () => {
+    setPromotions(promotions.map((promo) => (promo.id === editingPromo.id ? { ...promo, ...promoFormData } : promo)))
+    setEditingPromo(null)
+    resetPromoForm()
+  }
+
+  const handleDeletePromo = (promoId) => {
+    if (confirm("Êtes-vous sûr de vouloir supprimer cette promotion ?")) {
+      setPromotions(promotions.filter((promo) => promo.id !== promoId))
+    }
+  }
+
+  const togglePromoStatus = (promoId) => {
+    setPromotions(promotions.map((promo) => (promo.id === promoId ? { ...promo, active: !promo.active } : promo)))
+  }
+
+  const resetPromoForm = () => {
+    setPromoFormData({
+      title: "",
+      description: "",
+      discount: "",
+      active: true,
+      startDate: "",
+      endDate: "",
+    })
+  }
+
+  const openEditPromoModal = (promo) => {
+    setEditingPromo(promo)
+    setPromoFormData({
+      title: promo.title,
+      description: promo.description,
+      discount: promo.discount.toString(),
+      active: promo.active,
+      startDate: promo.startDate,
+      endDate: promo.endDate,
+    })
+  }
+
   const getRoleLabel = (role) => {
     switch (role) {
       case "manager":
@@ -356,6 +438,7 @@ export default function ManagerDashboard() {
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
               { id: "orders", label: "Commandes", icon: ShoppingBag, badge: activeOrders },
               { id: "menu", label: "Menu", icon: Package },
+              { id: "promotions", label: "Promotions", icon: Tag, badge: promotions.filter(p => p.active).length },
               { id: "employees", label: "Employés", icon: Users, badge: employees.length },
               { id: "complaints", label: "Réclamations", icon: MessageSquare, badge: urgentComplaints },
               { id: "statistics", label: "Statistiques", icon: TrendingUp },
@@ -413,6 +496,7 @@ export default function ManagerDashboard() {
                 {activeTab === "dashboard" && "Dashboard"}
                 {activeTab === "orders" && "Gestion des Commandes"}
                 {activeTab === "menu" && "Gestion du Menu"}
+                {activeTab === "promotions" && "Gestion des Promotions"}
                 {activeTab === "employees" && "Gestion des Employés"}
                 {activeTab === "complaints" && "Gestion des Réclamations"}
                 {activeTab === "statistics" && "Statistiques Détaillées"}
@@ -486,26 +570,31 @@ export default function ManagerDashboard() {
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg">
-                <h3 className="text-base sm:text-lg font-bold text-black mb-4">Ventes de la semaine</h3>
-                <div className="h-48 sm:h-64">
-                  <canvas ref={salesChartRef}></canvas>
+              <FadeInOnScroll delay={0}>
+                <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <h3 className="text-base sm:text-lg font-bold text-black mb-4">Ventes de la semaine</h3>
+                  <div className="h-48 sm:h-64">
+                    <canvas ref={salesChartRef}></canvas>
+                  </div>
                 </div>
-              </div>
+              </FadeInOnScroll>
 
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg">
-                <h3 className="text-base sm:text-lg font-bold text-black mb-4">Top plats populaires</h3>
-                <div className="h-48 sm:h-64">
-                  <canvas ref={popularItemsChartRef}></canvas>
+              <FadeInOnScroll delay={200}>
+                <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <h3 className="text-base sm:text-lg font-bold text-black mb-4">Top plats populaires</h3>
+                  <div className="h-48 sm:h-64">
+                    <canvas ref={popularItemsChartRef}></canvas>
+                  </div>
                 </div>
-              </div>
+              </FadeInOnScroll>
             </div>
 
             {/* Quick Info Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
               {/* Employees */}
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-6">
+              <FadeInOnScroll delay={0}>
+                <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-between mb-6">
                   <h3 className="text-base sm:text-lg font-bold text-black">Équipe ({employees.length} employés)</h3>
                   <button 
                     onClick={() => setActiveTab("employees")}
@@ -536,10 +625,12 @@ export default function ManagerDashboard() {
                 >
                   Voir tous les employés
                 </button>
-              </div>
+                </div>
+              </FadeInOnScroll>
 
               {/* Complaints */}
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg">
+              <FadeInOnScroll delay={200}>
+                <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-base sm:text-lg font-bold text-black">Réclamations récentes</h3>
                   <span className="bg-red-100 text-red-800 px-2 py-1 text-xs font-semibold rounded">
@@ -579,12 +670,14 @@ export default function ManagerDashboard() {
                 >
                   Gérer toutes les réclamations
                 </button>
-              </div>
+                </div>
+              </FadeInOnScroll>
             </div>
 
             {/* Loyalty & Referral Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg">
+              <FadeInOnScroll delay={0}>
+                <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                 <h3 className="text-base sm:text-lg font-bold text-black mb-4">Programme fidélité</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-3 bg-gray-50 rounded">
@@ -622,7 +715,8 @@ export default function ManagerDashboard() {
                     <div className="text-xs sm:text-sm text-gray-600">Bonus distribués</div>
                   </div>
                 </div>
-              </div>
+                </div>
+              </FadeInOnScroll>
             </div>
           </div>
         )}
@@ -769,6 +863,79 @@ export default function ManagerDashboard() {
                         <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Promotions Tab */}
+        {activeTab === "promotions" && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Gestion des promotions</h2>
+              <button
+                onClick={() => setShowPromoModal(true)}
+                className="bg-[#cfbd97] text-black px-6 py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Ajouter une promotion
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {promotions.map((promo) => (
+                <div key={promo.id} className="bg-white rounded-xl p-6 shadow-lg">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-2">{promo.title}</h3>
+                      <p className="text-sm text-gray-600 mb-3">{promo.description}</p>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        promo.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {promo.active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-gray-600 mb-1">Réduction</p>
+                    <p className="text-2xl font-bold text-[#cfbd97]">{promo.discount} F</p>
+                  </div>
+
+                  <div className="text-sm text-gray-600 mb-4">
+                    <p>
+                      Du {new Date(promo.startDate).toLocaleDateString("fr-FR")} au{" "}
+                      {new Date(promo.endDate).toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => togglePromoStatus(promo.id)}
+                      className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${
+                        promo.active
+                          ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-green-100 text-green-700 hover:bg-green-200"
+                      }`}
+                    >
+                      {promo.active ? "Désactiver" : "Activer"}
+                    </button>
+                    <button
+                      onClick={() => openEditPromoModal(promo)}
+                      className="px-4 py-2 bg-[#cfbd97] text-black rounded-lg hover:bg-[#b5a082] transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePromo(promo.id)}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -968,7 +1135,124 @@ export default function ManagerDashboard() {
         </div>
       )}
 
+      {/* Promotion Modal */}
+      {(showPromoModal || editingPromo) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-[#cfbd97]/20 rounded-full flex items-center justify-center">
+                <Tag className="w-6 h-6 text-[#cfbd97]" />
+              </div>
+              <h3 className="text-2xl font-bold">{editingPromo ? "Modifier la promotion" : "Ajouter une promotion"}</h3>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                editingPromo ? handleEditPromo() : handleAddPromo()
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-2">Titre</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={promoFormData.title}
+                  onChange={handlePromoFormChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <textarea
+                  name="description"
+                  value={promoFormData.description}
+                  onChange={handlePromoFormChange}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97] resize-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Réduction (F)</label>
+                <input
+                  type="number"
+                  name="discount"
+                  value={promoFormData.discount}
+                  onChange={handlePromoFormChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Date de début</label>
+                <input
+                  type="date"
+                  name="startDate"
+                  value={promoFormData.startDate}
+                  onChange={handlePromoFormChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Date de fin</label>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={promoFormData.endDate}
+                  onChange={handlePromoFormChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="active"
+                  name="active"
+                  checked={promoFormData.active}
+                  onChange={handlePromoFormChange}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="active" className="text-sm font-medium">
+                  Promotion active
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPromoModal(false)
+                    setEditingPromo(null)
+                    resetPromoForm()
+                  }}
+                  className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#cfbd97] text-black py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors"
+                >
+                  {editingPromo ? "Modifier" : "Ajouter"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   )
 }
+
+

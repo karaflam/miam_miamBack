@@ -9,12 +9,7 @@ use App\Http\Controllers\Api\EvenementController;
 use App\Http\Controllers\Api\StatistiqueController;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return view('frontend');
 });
 
 Route::get('/dashboard', function () {

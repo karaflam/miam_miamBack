@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { mockOrders as initialOrders } from "../data/mockData"
 import { Clock, CheckCircle, Package, TrendingUp, Search } from "lucide-react"
+import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function EmployeeDashboard() {
   const [orders, setOrders] = useState(initialOrders)
@@ -93,53 +94,61 @@ export default function EmployeeDashboard() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                <Clock className="w-6 h-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">En attente</p>
-                <p className="text-2xl font-bold">{stats.pending}</p>
+          <FadeInOnScroll delay={0}>
+            <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">En attente</p>
+                  <p className="text-2xl font-bold">{stats.pending}</p>
+                </div>
               </div>
             </div>
-          </div>
+          </FadeInOnScroll>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center">
-                <Package className="w-6 h-6 text-warning" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">En préparation</p>
-                <p className="text-2xl font-bold">{stats.preparing}</p>
+          <FadeInOnScroll delay={150}>
+            <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center">
+                  <Package className="w-6 h-6 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">En préparation</p>
+                  <p className="text-2xl font-bold">{stats.preparing}</p>
+                </div>
               </div>
             </div>
-          </div>
+          </FadeInOnScroll>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Prêtes</p>
-                <p className="text-2xl font-bold">{stats.ready}</p>
+          <FadeInOnScroll delay={300}>
+            <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Prêtes</p>
+                  <p className="text-2xl font-bold">{stats.ready}</p>
+                </div>
               </div>
             </div>
-          </div>
+          </FadeInOnScroll>
 
-          <div className="bg-white rounded-xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Terminées</p>
-                <p className="text-2xl font-bold">{stats.completed}</p>
+          <FadeInOnScroll delay={450}>
+            <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Terminées</p>
+                  <p className="text-2xl font-bold">{stats.completed}</p>
+                </div>
               </div>
             </div>
-          </div>
+          </FadeInOnScroll>
         </div>
 
         {/* Filters */}
