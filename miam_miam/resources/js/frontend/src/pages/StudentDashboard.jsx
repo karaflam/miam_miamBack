@@ -1,8 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
+import { referralService } from "../services/api"
 import { mockMenuItems, mockOrders } from "../data/mockData"
+import Blackjack from "../../components/student/Game/blackjack/Blackjack"
+import CulinaryQuiz from "../../components/student/Game/Quiz/CulinaryQuiz"
 import {
   Wallet,
   Award,
@@ -18,6 +21,11 @@ import {
   CreditCard,
   Truck,
   Store,
+  Copy,
+  Check,
+  Loader2,
+  AlertCircle,
+  User,
 } from "lucide-react"
 
 export default function StudentDashboard() {
@@ -28,6 +36,55 @@ export default function StudentDashboard() {
   const [orders, setOrders] = useState(mockOrders.filter((o) => o.userId === user?.id))
   const [showRechargeModal, setShowRechargeModal] = useState(false)
   const [rechargeAmount, setRechargeAmount] = useState("")
+  const [copied, setCopied] = useState(false)
+  const [referralData, setReferralData] = useState({
+    code: "",
+    referrals: [],
+  })
+  const [loadingReferral, setLoadingReferral] = useState(false)
+  const [referralError, setReferralError] = useState(null)
+  const [activeGame, setActiveGame] = useState(null) // null, 'blackjack', 'quiz'
+
+  // Charger les données de parrainage quand on affiche l'onglet
+  useEffect(() => {
+    if (activeTab === "referral") {
+      loadReferralData()
+    }
+  }, [activeTab])
+
+  const loadReferralData = async () => {
+    setLoadingReferral(true)
+    setReferralError(null)
+    
+    try {
+      // Charger le code de parrainage
+      const codeResult = await referralService.getCode()
+      if (codeResult.success) {
+        setReferralData((prev) => ({
+          ...prev,
+          code: codeResult.data.code,
+        }))
+      } else {
+        console.error("Erreur code:", codeResult.error)
+      }
+      
+      // Charger la liste des filleuls
+      const referralsResult = await referralService.getReferrals()
+      if (referralsResult.success) {
+        setReferralData((prev) => ({
+          ...prev,
+          referrals: referralsResult.data,
+        }))
+      } else {
+        console.error("Erreur filleuls:", referralsResult.error)
+      }
+    } catch (error) {
+      console.error("Erreur chargement parrainage:", error)
+      setReferralError("Impossible de charger les données de parrainage")
+    }
+    
+    setLoadingReferral(false)
+  }
 
   const categories = ["Tous", "Plats", "Boissons", "Desserts"]
 
@@ -111,6 +168,24 @@ export default function StudentDashboard() {
       setRechargeAmount("")
       alert(`Compte rechargé de ${amount} F avec succès!`)
     }
+  }
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(referralData.code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("Erreur lors de la copie:", err)
+    }
+  }
+
+  const handleGameComplete = (points) => {
+    if (points > 0) {
+      updateLoyaltyPoints(points)
+      alert(`Félicitations ! Vous avez gagné ${points} points de fidélité !`)
+    }
+    setActiveGame(null)
   }
 
   const canUseDiscount = user.loyaltyPoints >= 15
@@ -345,29 +420,110 @@ export default function StudentDashboard() {
                     <Users className="w-10 h-10 text-primary" />
                   </div>
                   <h2 className="text-2xl font-bold mb-2">Programme de parrainage</h2>
-                  <p className="text-muted-foreground">Parrainez vos amis et gagnez des points!</p>
+                  <p className="text-muted-foreground">Parrainez vos amis et gagnez 10 points par filleul!</p>
                 </div>
 
-                <div className="bg-muted rounded-xl p-6 mb-6">
-                  <p className="text-sm text-muted-foreground mb-2">Votre code de parrainage</p>
-                  <div className="flex items-center gap-4">
-                    <code className="flex-1 bg-white px-4 py-3 rounded-lg font-mono text-lg font-bold">
-                      {user?.id.slice(0, 8).toUpperCase()}
-                    </code>
-                    <button className="bg-primary text-secondary px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors font-semibold">
-                      Copier
+                {loadingReferral ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  </div>
+                ) : referralError ? (
+                  <div className="bg-error/10 border border-error text-error rounded-xl p-6 text-center">
+                    <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+                    <p className="font-semibold mb-2">{referralError}</p>
+                    <button
+                      onClick={loadReferralData}
+                      className="mt-4 bg-primary text-secondary px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+                    >
+                      Réessayer
                     </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-gradient-to-r from-primary to-primary-dark rounded-xl p-6 mb-6 text-secondary">
+                      <p className="text-sm text-secondary/80 mb-2">Votre code de parrainage</p>
+                      <div className="flex items-center gap-4">
+                        <code className="flex-1 bg-secondary/20 backdrop-blur-sm px-4 py-3 rounded-lg font-mono text-2xl font-bold tracking-wider">
+                          {referralData.code}
+                        </code>
+                        <button
+                          onClick={handleCopyCode}
+                          className="bg-secondary text-primary px-6 py-3 rounded-lg hover:bg-secondary/90 transition-all font-semibold flex items-center gap-2 min-w-[120px] justify-center"
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-5 h-5" />
+                              Copié!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-5 h-5" />
+                              Copier
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                {/* Statistiques de parrainage */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-muted rounded-xl p-4 text-center">
+                    <p className="text-3xl font-bold text-primary mb-1">{referralData.referrals.length}</p>
+                    <p className="text-sm text-muted-foreground">Filleuls</p>
+                  </div>
+                  <div className="bg-muted rounded-xl p-4 text-center">
+                    <p className="text-3xl font-bold text-success mb-1">{referralData.referrals.length * 10}</p>
+                    <p className="text-sm text-muted-foreground">Points gagnés</p>
                   </div>
                 </div>
 
+                {/* Liste des filleuls */}
+                {referralData.referrals.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-lg mb-4">Vos filleuls</h3>
+                    <div className="space-y-2">
+                      {referralData.referrals.map((referral, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-semibold">{referral.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Inscrit le {new Date(referral.date).toLocaleDateString("fr-FR")}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-success">+10 points</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {referralData.referrals.length === 0 && (
+                  <div className="text-center py-8 bg-muted rounded-xl mb-6">
+                    <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-2">Aucun filleul pour le moment</p>
+                    <p className="text-sm text-muted-foreground">Partagez votre code pour commencer!</p>
+                  </div>
+                )}
+
+                {/* Comment ça marche */}
                 <div className="space-y-4">
+                  <h3 className="font-bold text-lg">Comment ça marche ?</h3>
                   <div className="flex items-start gap-4 p-4 bg-muted rounded-lg">
                     <div className="w-8 h-8 bg-primary text-secondary rounded-full flex items-center justify-center font-bold flex-shrink-0">
                       1
                     </div>
                     <div>
                       <p className="font-semibold mb-1">Partagez votre code</p>
-                      <p className="text-sm text-muted-foreground">Envoyez votre code à vos amis</p>
+                      <p className="text-sm text-muted-foreground">
+                        Copiez et envoyez votre code de parrainage à vos amis
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4 p-4 bg-muted rounded-lg">
@@ -376,7 +532,9 @@ export default function StudentDashboard() {
                     </div>
                     <div>
                       <p className="font-semibold mb-1">Ils s'inscrivent</p>
-                      <p className="text-sm text-muted-foreground">Vos amis créent un compte avec votre code</p>
+                      <p className="text-sm text-muted-foreground">
+                        Vos amis créent un compte en utilisant votre code
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4 p-4 bg-muted rounded-lg">
@@ -385,10 +543,14 @@ export default function StudentDashboard() {
                     </div>
                     <div>
                       <p className="font-semibold mb-1">Gagnez des points</p>
-                      <p className="text-sm text-muted-foreground">Recevez 5 points par parrainage réussi</p>
+                      <p className="text-sm text-muted-foreground">
+                        Recevez automatiquement 10 points de fidélité par filleul
+                      </p>
                     </div>
                   </div>
                 </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -423,24 +585,69 @@ export default function StudentDashboard() {
             )}
 
             {activeTab === "games" && (
-              <div className="bg-white rounded-xl p-8 shadow-lg text-center">
-                <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Gamepad2 className="w-10 h-10 text-primary" />
-                </div>
-                <h2 className="text-2xl font-bold mb-4">Mini-jeux</h2>
-                <p className="text-muted-foreground mb-8">
-                  Jouez à nos mini-jeux et gagnez des points de fidélité supplémentaires!
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-6 bg-muted rounded-xl hover:shadow-lg transition-shadow cursor-pointer">
-                    <h3 className="font-bold mb-2">Roue de la fortune</h3>
-                    <p className="text-sm text-muted-foreground">Tentez votre chance quotidienne</p>
+              <div className="bg-white rounded-xl p-8 shadow-lg">
+                {!activeGame ? (
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Gamepad2 className="w-10 h-10 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-4">Mini-jeux</h2>
+                    <p className="text-muted-foreground mb-8">
+                      Jouez à nos mini-jeux et gagnez des points de fidélité supplémentaires!
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                      <div 
+                        onClick={() => setActiveGame('blackjack')}
+                        className="p-8 bg-gradient-to-br from-red-50 to-red-100 rounded-xl hover:shadow-2xl transition-all cursor-pointer border-2 border-transparent hover:border-red-400 transform hover:scale-105"
+                      >
+                        <div className="text-5xl mb-4">🃏</div>
+                        <h3 className="font-bold text-xl mb-2 text-red-700">Blackjack</h3>
+                        <p className="text-sm text-red-600 mb-3">Battez le croupier et gagnez gros!</p>
+                        <div className="flex items-center justify-center gap-2 text-sm font-semibold text-red-700">
+                          <Award className="w-4 h-4" />
+                          <span>Jusqu'à 50 points</span>
+                        </div>
+                      </div>
+                      <div 
+                        onClick={() => setActiveGame('quiz')}
+                        className="p-8 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl hover:shadow-2xl transition-all cursor-pointer border-2 border-transparent hover:border-purple-400 transform hover:scale-105"
+                      >
+                        <div className="text-5xl mb-4">🍽️</div>
+                        <h3 className="font-bold text-xl mb-2 text-purple-700">Quiz Culinaire</h3>
+                        <p className="text-sm text-purple-600 mb-3">Testez vos connaissances sur la cuisine sénégalaise</p>
+                        <div className="flex items-center justify-center gap-2 text-sm font-semibold text-purple-700">
+                          <Award className="w-4 h-4" />
+                          <span>Jusqu'à 23 points</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm text-blue-700">
+                        💡 <strong>Astuce :</strong> Accumulez des points pour débloquer des réductions exclusives !
+                      </p>
+                    </div>
                   </div>
-                  <div className="p-6 bg-muted rounded-xl hover:shadow-lg transition-shadow cursor-pointer">
-                    <h3 className="font-bold mb-2">Quiz culinaire</h3>
-                    <p className="text-sm text-muted-foreground">Testez vos connaissances</p>
+                ) : activeGame === 'blackjack' ? (
+                  <div>
+                    <button
+                      onClick={() => setActiveGame(null)}
+                      className="mb-4 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      ← Retour aux jeux
+                    </button>
+                    <Blackjack />
                   </div>
-                </div>
+                ) : activeGame === 'quiz' ? (
+                  <div>
+                    <button
+                      onClick={() => setActiveGame(null)}
+                      className="mb-4 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      ← Retour aux jeux
+                    </button>
+                    <CulinaryQuiz onComplete={handleGameComplete} />
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\PaiementController;
@@ -33,6 +35,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/user', [AuthController::class, 'user']);
+    
+    // Profile
+    Route::prefix('profile')->group(function () {
+        Route::get('/', [ProfileController::class, 'show']);
+        Route::put('/', [ProfileController::class, 'update']);
+        Route::put('/password', [ProfileController::class, 'updatePassword']);
+    });
+    
+    // Referral
+    Route::prefix('referral')->group(function () {
+        Route::get('/code', [ReferralController::class, 'getCode']);
+        Route::get('/referrals', [ReferralController::class, 'getReferrals']);
+    });
     
     // Commandes
     Route::post('/commandes', [CommandeController::class, 'store']);

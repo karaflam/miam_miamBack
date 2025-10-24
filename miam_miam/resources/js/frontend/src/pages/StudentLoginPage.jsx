@@ -96,6 +96,12 @@ export default function StudentLoginPage() {
               </div>
             </div>
 
+            <div className="flex items-center justify-end">
+              <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                Mot de passe oublié ?
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={loading}

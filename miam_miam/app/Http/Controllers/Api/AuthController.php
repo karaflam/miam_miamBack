@@ -158,15 +158,25 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email|exists:users,email',
+        ], [
+            'email.exists' => 'Aucun compte n\'est associé à cette adresse email.',
         ]);
 
-        // Logique d'envoi d'email de réinitialisation
-        // À implémenter selon vos besoins
+        $status = \Illuminate\Support\Facades\Password::sendResetLink(
+            $request->only('email')
+        );
+
+        if ($status === \Illuminate\Support\Facades\Password::RESET_LINK_SENT) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Un lien de réinitialisation a été envoyé à votre adresse email.',
+            ]);
+        }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Un lien de réinitialisation a été envoyé à votre adresse email.',
-        ]);
+            'success' => false,
+            'error' => 'Impossible d\'envoyer le lien de réinitialisation. Veuillez réessayer.',
+        ], 500);
     }
 
     /**
@@ -180,12 +190,25 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Logique de réinitialisation du mot de passe
-        // À implémenter selon vos besoins
+        $status = \Illuminate\Support\Facades\Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'mot_de_passe' => Hash::make($password)
+                ])->save();
+            }
+        );
+
+        if ($status === \Illuminate\Support\Facades\Password::PASSWORD_RESET) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Votre mot de passe a été réinitialisé avec succès.',
+            ]);
+        }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Votre mot de passe a été réinitialisé avec succès.',
-        ]);
+            'success' => false,
+            'error' => 'Le lien de réinitialisation est invalide ou a expiré.',
+        ], 400);
     }
 }

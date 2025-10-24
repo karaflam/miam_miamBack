@@ -138,4 +138,85 @@ export const authService = {
   },
 }
 
+// Services de profil
+export const profileService = {
+  async getProfile() {
+    try {
+      const response = await api.get('/profile')
+      if (response.data.success) {
+        return { success: true, data: response.data.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération du profil' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération du profil'
+      return { success: false, error: message }
+    }
+  },
+
+  async updateProfile(profileData) {
+    try {
+      const response = await api.put('/profile', profileData)
+      if (response.data.success) {
+        // Mettre à jour l'utilisateur dans le localStorage
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+        const updatedUser = {
+          ...currentUser,
+          name: `${profileData.prenom} ${profileData.nom}`,
+          email: profileData.email,
+        }
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser))
+        return { success: true, message: response.data.message, data: response.data.data }
+      }
+      return { success: false, error: 'Erreur lors de la mise à jour' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la mise à jour'
+      const errors = error.response?.data?.errors || {}
+      return { success: false, error: message, errors }
+    }
+  },
+
+  async updatePassword(passwordData) {
+    try {
+      const response = await api.put('/profile/password', passwordData)
+      if (response.data.success) {
+        return { success: true, message: response.data.message }
+      }
+      return { success: false, error: 'Erreur lors du changement de mot de passe' }
+    } catch (error) {
+      const message = error.response?.data?.error || error.response?.data?.message || 'Erreur lors du changement de mot de passe'
+      const errors = error.response?.data?.errors || {}
+      return { success: false, error: message, errors }
+    }
+  },
+}
+
+// Services de parrainage
+export const referralService = {
+  async getCode() {
+    try {
+      const response = await api.get('/referral/code')
+      if (response.data.success) {
+        return { success: true, data: response.data.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération du code' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération du code'
+      return { success: false, error: message }
+    }
+  },
+
+  async getReferrals() {
+    try {
+      const response = await api.get('/referral/referrals')
+      if (response.data.success) {
+        return { success: true, data: response.data.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération des filleuls' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération des filleuls'
+      return { success: false, error: message }
+    }
+  },
+}
+
 export default api

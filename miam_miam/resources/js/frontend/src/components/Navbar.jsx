@@ -3,17 +3,19 @@
 import React from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { Menu, X, User, LogOut, Home, ShoppingBag, Users, BarChart3, Settings } from "lucide-react"
+import { Menu, X, User, LogOut, Home, ShoppingBag, Users, BarChart3, Settings, ChevronDown } from "lucide-react"
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = React.useState(false)
+  const [showUserMenu, setShowUserMenu] = React.useState(false)
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate("/")
     setIsOpen(false)
+    setShowUserMenu(false)
   }
 
   const getDashboardLink = () => {
@@ -62,18 +64,35 @@ export default function Navbar() {
                     {dashboardLink.label}
                   </Link>
                 )}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 px-3 py-1 bg-primary/20 rounded-full">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center gap-2 px-3 py-1 bg-primary/20 rounded-full hover:bg-primary/30 transition-colors"
+                  >
                     <User className="w-4 h-4" />
                     <span className="text-sm">{user.name}</span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="hover:text-primary transition-colors flex items-center gap-2"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Déconnexion
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
                   </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                      <Link
+                        to="/profile"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        Mon profil
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Déconnexion
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

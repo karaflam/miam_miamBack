@@ -133,10 +133,9 @@ const Jeu21: React.FC = () => {
       mainJoueur
     }));
 
+    // Seulement terminer automatiquement si le joueur dépasse 21
     if (total > 21) {
       setTimeout(() => finPartie(false), 500);
-    } else if (total === 21) {
-      setTimeout(() => finPartie(true), 500);
     }
   };
 
@@ -193,6 +192,7 @@ const Jeu21: React.FC = () => {
     // Déterminer le gagnant
     if (totalJoueur > 21) {
       message = 'Dépassé! Vous avez perdu.';
+      victoire = false;
       nouvellesVictoires = 0;
       nouveauSolde -= gameState.mise;
     } else if (totalCroupier > 21) {
@@ -203,19 +203,24 @@ const Jeu21: React.FC = () => {
       victoire = true;
     } else if (totalJoueur < totalCroupier) {
       message = 'Croupier gagne!';
+      victoire = false;
       nouvellesVictoires = 0;
       nouveauSolde -= gameState.mise;
     } else {
-      message = 'Égalité!';
-      nouvellesVictoires = 0;
+      message = 'Égalité! Mise remboursée.';
+      victoire = false;
+      // En cas d'égalité, on ne change pas le solde ni les victoires
     }
 
-    // Appliquer la condition spéciale après 3 victoires
+    // Appliquer les gains en cas de victoire
     if (victoire) {
       nouvellesVictoires++;
       
+      // Vérifier si c'est un Blackjack naturel (21 avec 2 cartes)
+      const estBlackjack = totalJoueur === 21 && gameState.mainJoueur.length === 2;
+      
       if (nouvellesVictoires >= 3) {
-        // Condition spéciale: doit avoir 1 pour gagner
+        // Condition spéciale: doit avoir un As pour gagner
         const aUn = gameState.mainJoueur.some(carte => carte.valeur === 'A');
         if (!aUn) {
           message = '3 victoires! Mais vous devez avoir un As pour gagner!';
@@ -223,12 +228,15 @@ const Jeu21: React.FC = () => {
           nouvellesVictoires = 0;
           nouveauSolde -= gameState.mise;
         } else {
-          message = '3 victoires! Condition spéciale remplie! Vous gagnez double!';
-          nouveauSolde += gameState.mise * 2; // Double gain
+          message = '🎉 3 victoires avec un As! Vous gagnez TRIPLE!';
+          nouveauSolde += gameState.mise * 3; // Triple gain
+          nouvellesVictoires = 0; // Réinitialiser après le bonus
         }
-      }
-      
-      if (victoire && nouvellesVictoires < 3) {
+      } else if (estBlackjack) {
+        message = '🃏 BLACKJACK! Vous gagnez 2.5x votre mise!';
+        nouveauSolde += Math.floor(gameState.mise * 2.5);
+      } else {
+        // Victoire normale
         nouveauSolde += gameState.mise;
       }
     }
@@ -312,7 +320,7 @@ const Jeu21: React.FC = () => {
 
       {gameState.victoiresConsecutives >= 2 && (
         <div className="special-condition">
-          ⚠️ Condition spéciale: 3 victoires - vous devez obtenir 1 !
+          ⚠️ Condition spéciale: 3 victoires - vous devez avoir un As (A) pour gagner TRIPLE !
         </div>
       )}
 

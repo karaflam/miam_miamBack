@@ -6,6 +6,9 @@ import LoginPage from "./pages/LoginPage"
 import StudentLoginPage from "./pages/StudentLoginPage"
 import StaffLoginPage from "./pages/StaffLoginPage"
 import RegisterPage from "./pages/RegisterPage"
+import ForgotPasswordPage from "./pages/ForgotPasswordPage"
+import ResetPasswordPage from "./pages/ResetPasswordPage"
+import ProfilePage from "./pages/ProfilePage"
 import StudentDashboard from "./pages/StudentDashboard"
 import EmployeeDashboard from "./pages/EmployeeDashboard"
 import ManagerDashboard from "./pages/ManagerDashboard"
@@ -23,6 +26,17 @@ function App() {
           <Route path="staff-login" element={<StaffLoginPage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="student-register" element={<RegisterPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
+          
+          <Route
+            path="profile"
+            element={
+              <ProtectedRoute allowedRoles={["student", "employee", "manager", "admin"]}>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="student"
