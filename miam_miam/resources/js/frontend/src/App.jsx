@@ -3,6 +3,8 @@ import { AuthProvider } from "./context/AuthContext"
 import Layout from "./components/Layout"
 import HomePage from "./pages/HomePage"
 import LoginPage from "./pages/LoginPage"
+import StudentLoginPage from "./pages/StudentLoginPage"
+import StaffLoginPage from "./pages/StaffLoginPage"
 import RegisterPage from "./pages/RegisterPage"
 import StudentDashboard from "./pages/StudentDashboard"
 import EmployeeDashboard from "./pages/EmployeeDashboard"
@@ -17,7 +19,10 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route path="student-login" element={<StudentLoginPage />} />
+          <Route path="staff-login" element={<StaffLoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="student-register" element={<RegisterPage />} />
 
           <Route
             path="student"

@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect } from "react"
-import { mockUsers } from "../data/mockData"
+import { authService } from "../services/api"
 
 const AuthContext = createContext(null)
 
@@ -12,46 +12,49 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // Check localStorage for saved user session
     const savedUser = localStorage.getItem("currentUser")
-    if (savedUser) {
+    const token = localStorage.getItem("auth_token")
+    
+    if (savedUser && token) {
       setUser(JSON.parse(savedUser))
+      // Optionnel: vérifier que le token est toujours valide
+      authService.getCurrentUser().then(result => {
+        if (result.success) {
+          setUser(result.user)
+        } else {
+          setUser(null)
+          localStorage.removeItem("currentUser")
+          localStorage.removeItem("auth_token")
+        }
+      })
     }
     setLoading(false)
   }, [])
 
-  const login = (email, password) => {
-    const foundUser = mockUsers.find((u) => u.email === email && u.password === password)
-
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser
-      setUser(userWithoutPassword)
-      localStorage.setItem("currentUser", JSON.stringify(userWithoutPassword))
-      return { success: true, user: userWithoutPassword }
+  const login = async (email, password) => {
+    const result = await authService.login(email, password)
+    
+    if (result.success) {
+      setUser(result.user)
+      return { success: true, user: result.user }
     }
 
-    return { success: false, error: "Email ou mot de passe incorrect" }
+    return { success: false, error: result.error }
   }
 
-  const register = (userData) => {
-    // In a real app, this would create a new user in the database
-    const newUser = {
-      id: Date.now().toString(),
-      ...userData,
-      role: "student",
-      balance: 0,
-      loyaltyPoints: 0,
-      createdAt: new Date().toISOString(),
+  const register = async (userData) => {
+    const result = await authService.register(userData)
+    
+    if (result.success) {
+      setUser(result.user)
+      return { success: true, user: result.user }
     }
 
-    const { password, ...userWithoutPassword } = newUser
-    setUser(userWithoutPassword)
-    localStorage.setItem("currentUser", JSON.stringify(userWithoutPassword))
-
-    return { success: true, user: userWithoutPassword }
+    return { success: false, error: result.error, errors: result.errors }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    await authService.logout()
     setUser(null)
-    localStorage.removeItem("currentUser")
   }
 
   const updateBalance = (amount) => {

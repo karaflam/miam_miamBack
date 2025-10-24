@@ -69,3 +69,9 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/test', function () {
     return response()->json(['message' => 'API fonctionne!']);
 });
+
+// Fallback route pour le SPA React - doit être en dernier
+// Toutes les routes non-API renvoient la vue frontend pour que React Router prenne le relais
+Route::fallback(function () {
+    return view('frontend');
+});

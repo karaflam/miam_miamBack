@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\CommandeController;
 use App\Http\Controllers\Api\PaiementController;
@@ -8,10 +9,17 @@ use App\Http\Controllers\Api\StatistiqueController;
 use App\Http\Controllers\Api\UsagePromoController;
 use App\Http\Controllers\Api\FideliteController;
 use App\Http\Controllers\Api\ParrainageController;
+
 // Route test
 Route::get('/test', function () {
     return response()->json(['message' => 'API fonctionne!']);
 });
+
+// Routes d'authentification publiques
+Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // Routes publiques
 Route::get('/menu', [MenuController::class, 'index']);
@@ -21,6 +29,10 @@ Route::post('/cinetpay/notify', [PaiementController::class, 'notify']);
 
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {
+    
+    // Auth
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/auth/user', [AuthController::class, 'user']);
     
     // Commandes
     Route::post('/commandes', [CommandeController::class, 'store']);

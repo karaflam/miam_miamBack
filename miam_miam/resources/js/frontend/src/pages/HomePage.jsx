@@ -137,7 +137,7 @@ export default function HomePage() {
             Inscrivez-vous maintenant et profitez de notre programme de fidélité. 1000F dépensés = 1 point !
           </p>
           <Link
-            to="/register"
+            to="/student-register"
             className="inline-flex items-center gap-2 bg-secondary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-secondary/90 transition-colors"
           >
             Créer mon compte
@@ -145,6 +145,23 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* Footer avec lien discret pour connexion étudiants */}
+      <footer className="bg-gray-900 text-gray-400 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm">© 2024 Mon Miam Miam. Tous droits réservés.</p>
+            <div className="flex gap-6 text-sm">
+              <Link to="/student-login" className="hover:text-white transition-colors">
+                Espace Étudiant
+              </Link>
+              <Link to="/staff-login" className="hover:text-white transition-colors">
+                Espace Staff
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -1,0 +1,256 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #f0f, #8c0443);
+    color: white;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    text-align: center;
+    color: #ffd700;
+    margin-bottom: 20px;
+    font-size: 2.5em;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.info-item {
+    text-align: center;
+}
+
+.info-value {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #ffd700;
+}
+
+.hands-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.hand {
+    flex: 1;
+    margin: 0 10px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 10px;
+    min-height: 150px;
+}
+
+.hand-title {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #ffd700;
+    font-size: 1.2em;
+}
+
+.cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    min-height: 80px;
+}
+
+.card {
+    width: 60px;
+    height: 80px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 5px;
+    color: black;
+    font-weight: bold;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.card.red {
+    color: #d40000;
+}
+
+.card-top, .card-bottom {
+    font-size: 0.8em;
+}
+
+.card-center {
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.card-back {
+    background: linear-gradient(45deg, #d40000, #ff6b6b);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+}
+
+.total-display {
+    margin-top: 10px;
+    text-align: center;
+    font-weight: bold;
+    width: 100%;
+    color: #ffd700;
+    font-size: 1.1em;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.bet-controls, .game-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background: #ffd700;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1em;
+}
+
+button:hover:not(:disabled) {
+    background: #ffed4a;
+    transform: translateY(-2px);
+}
+
+button:disabled {
+    background: #666;
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.action-btn {
+    background: #4CAF50;
+    color: white;
+}
+
+.action-btn:hover:not(:disabled) {
+    background: #45a049;
+}
+
+.danger-btn {
+    background: #f44336;
+    color: white;
+}
+
+.danger-btn:hover:not(:disabled) {
+    background: #da190b;
+}
+
+input[type="number"] {
+    padding: 12px;
+    border: 2px solid #ffd700;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #000;
+    font-size: 1em;
+    width: 120px;
+    text-align: center;
+}
+
+.message {
+    text-align: center;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 8px;
+    font-size: 1.2em;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.victory-message {
+    background: rgba(76, 175, 80, 0.3);
+    color: #4CAF50;
+}
+
+.defeat-message {
+    background: rgba(244, 67, 54, 0.3);
+    color: #f44336;
+}
+
+.info-message {
+    background: rgba(255, 215, 0, 0.3);
+    color: #ffd700;
+}
+
+.special-condition {
+    background: rgba(255, 215, 0, 0.3);
+    color: #ffd700;
+    border: 2px solid #ffd700;
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px 0;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .hands-container {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .hand {
+        margin: 0;
+    }
+    
+    .game-controls {
+        flex-direction: column;
+    }
+    
+    button {
+        width: 100%;
+    }
+    
+    .bet-controls {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    input[type="number"] {
+        width: 100%;
+        max-width: 200px;
+    }
+}
