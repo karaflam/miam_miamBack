@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Chart } from 'chart.js/auto'
 import { mockUsers as initialUsers, mockPromotions as initialPromotions, mockMenuItems as initialMenuItems } from "../data/mockData"
-import { Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight } from "lucide-react"
+import { Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight , Eye, EyeOff, Package, Calendar, TrendingUp} from "lucide-react"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function AdminDashboard() {
@@ -324,6 +324,49 @@ export default function AdminDashboard() {
       category: "Plats",
       available: true,
     })
+  }
+
+  const handleAddMenuItem = () => {
+    if (menuFormData.name && menuFormData.description && menuFormData.price) {
+      const newItem = {
+        id: Date.now(),
+        name: menuFormData.name,
+        description: menuFormData.description,
+        price: parseInt(menuFormData.price),
+        category: menuFormData.category,
+        available: menuFormData.available,
+        image: "/placeholder.svg"
+      }
+      setMenuItems([...menuItems, newItem])
+      setShowMenuItemModal(false)
+      resetMenuForm()
+    }
+  }
+
+  const handleEditMenuItem = () => {
+    if (editingMenuItem && menuFormData.name && menuFormData.description && menuFormData.price) {
+      setMenuItems(prev => prev.map(item => 
+        item.id === editingMenuItem.id 
+          ? {
+              ...item,
+              name: menuFormData.name,
+              description: menuFormData.description,
+              price: parseInt(menuFormData.price),
+              category: menuFormData.category,
+              available: menuFormData.available
+            }
+          : item
+      ))
+      setShowMenuItemModal(false)
+      setEditingMenuItem(null)
+      resetMenuForm()
+    }
+  }
+
+  const handleDeleteMenuItem = (menuItemId) => {
+    if (confirm("Êtes-vous sûr de vouloir supprimer ce plat ?")) {
+      setMenuItems(menuItems.filter((item) => item.id !== menuItemId))
+    }
   }
 
   const resetEventForm = () => {
@@ -945,57 +988,87 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {activeTab === "menu" && (
-          <div className="mt-4 lg:mt-0">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Gestion du Menu</h2>
+                {activeTab === "menu" && (
+          <div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold">Gestion du menu</h2>
               <button
                 onClick={() => setShowMenuItemModal(true)}
-                className="bg-primary text-secondary px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors flex items-center gap-2"
+                className="bg-[#cfbd97] text-black px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors flex items-center gap-2"
               >
-                <Plus className="w-5 h-5" />
-                Nouveau Plat
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                Ajouter un article
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {menuItems.map((item) => (
-                <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-                  <div className="relative">
-                    <img src={item.image || "/placeholder.svg"} alt={item.name} className="w-full h-48 object-cover" />
-                    <div className="absolute top-3 left-3">
-                      <span className={`${item.available ? 'bg-green-500' : 'bg-yellow-500'} text-white px-2 py-1 rounded-full text-xs font-medium`}>
-                        {item.available ? 'Disponible' : 'Rupture'}
-                      </span>
+                <FadeInOnScroll key={item.id}>
+                  <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="relative">
+                      <img src={item.image || "/placeholder.svg"} alt={item.name} className="w-full h-48 object-cover" />
+                      {!item.available && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">Indisponible</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 sm:p-6">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="text-base sm:text-lg font-bold mb-1">{item.name}</h3>
+                          <p className="text-xs text-gray-500 mb-2">{item.category}</p>
+                        </div>
+                        <p className="text-lg sm:text-xl font-bold text-[#cfbd97]">{item.price.toLocaleString()} F</p>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-600 mb-4">{item.description}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setMenuItems(prev => prev.map(menuItem => 
+                              menuItem.id === item.id 
+                                ? { ...menuItem, available: !menuItem.available }
+                                : menuItem
+                            ))
+                          }}
+                          className={`flex-1 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-sm ${
+                            item.available
+                              ? "bg-gray-200 text-black hover:bg-gray-300"
+                              : "bg-green-500/20 text-green-700 hover:bg-green-500/30"
+                          }`}
+                        >
+                          {item.available ? (
+                            <>
+                              <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                              Masquer
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                              Afficher
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingMenuItem(item)
+                            setMenuFormData({
+                              name: item.name,
+                              description: item.description,
+                              price: item.price.toString(),
+                              category: item.category,
+                              available: item.available,
+                            })
+                            setShowMenuItemModal(true)
+                          }}
+                          className="px-3 sm:px-4 py-2 bg-[#cfbd97] text-black rounded-lg hover:bg-[#b5a082] transition-colors"
+                        >
+                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-lg">{item.name}</h4>
-                      <span className="text-primary font-bold text-lg">{item.price} F</span>
-                    </div>
-                    <p className="text-muted-foreground text-sm mb-3">{item.description}</p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                        {item.category}
-                      </span>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button className="flex-1 bg-muted text-foreground px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted/80 transition-all">
-                        Aperçu
-                      </button>
-                      <button 
-                        onClick={() => setShowMenuItemModal(true)}
-                        className="flex-1 bg-primary text-secondary px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary-dark transition-all"
-                      >
-                        <Edit className="w-4 h-4 mx-auto" />
-                      </button>
-                      <button className="bg-error text-white px-3 py-2 rounded-lg text-sm hover:opacity-90 transition-all">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                </FadeInOnScroll>
               ))}
             </div>
           </div>
@@ -1612,70 +1685,79 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Menu Item Modal */}
+            {/* Add/Edit Menu Item Modal */}
       {showMenuItemModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
-                <Tag className="w-6 h-6 text-primary" />
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowMenuItemModal(false)
+            setEditingMenuItem(null)
+            resetMenuForm()
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl sm:text-2xl font-bold mb-6">
+              {editingMenuItem ? "Modifier l'article" : "Ajouter un article"}
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                editingMenuItem ? handleEditMenuItem() : handleAddMenuItem()
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-2">Nom</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={menuFormData.name}
+                  onChange={handleMenuFormChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                />
               </div>
-              <h3 className="text-2xl font-bold">Nouveau Plat</h3>
-            </div>
-            
-            <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); setShowMenuItemModal(false); }}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Nom du plat</label>
-                  <input 
-                    type="text" 
-                    name="name"
-                    value={menuFormData.name}
-                    onChange={handleMenuFormChange}
-                    placeholder="Ex: Ndolé Traditionnel" 
-                    className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
-                    required 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Prix (F)</label>
-                  <input 
-                    type="number" 
-                    name="price"
-                    value={menuFormData.price}
-                    onChange={handleMenuFormChange}
-                    placeholder="2500" 
-                    className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
-                    required 
-                  />
-                </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <textarea
+                  name="description"
+                  value={menuFormData.description}
+                  onChange={handleMenuFormChange}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97] resize-none"
+                  required
+                />
               </div>
-              
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Prix (F)</label>
+                <input
+                  type="number"
+                  name="price"
+                  value={menuFormData.price}
+                  onChange={handleMenuFormChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                  min="0"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-2">Catégorie</label>
-                <select 
+                <select
                   name="category"
                   value={menuFormData.category}
                   onChange={handleMenuFormChange}
-                  className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
                 >
                   <option value="Plats">Plats</option>
                   <option value="Boissons">Boissons</option>
                   <option value="Desserts">Desserts</option>
                 </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
-                <textarea 
-                  name="description"
-                  value={menuFormData.description}
-                  onChange={handleMenuFormChange}
-                  placeholder="Décrivez les ingrédients et la préparation..." 
-                  rows="3" 
-                  className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary resize-none"
-                  required
-                ></textarea>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1691,23 +1773,24 @@ export default function AdminDashboard() {
                   Disponible
                 </label>
               </div>
-              
-              <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <button
+                  type="button"
                   onClick={() => {
-                    setShowMenuItemModal(false);
-                    resetMenuForm();
+                    setShowMenuItemModal(false)
+                    setEditingMenuItem(null)
+                    resetMenuForm()
                   }}
-                  className="flex-1 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
+                  className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
                 >
                   Annuler
                 </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#cfbd97] text-black py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors"
                 >
-                  Créer le plat
+                  {editingMenuItem ? "Modifier" : "Ajouter"}
                 </button>
               </div>
             </form>

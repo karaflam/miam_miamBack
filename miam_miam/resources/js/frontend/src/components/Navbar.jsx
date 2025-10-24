@@ -97,7 +97,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <Link to="/login" className="hover:text-primary transition-colors">
+                <Link to="/student-login" className="hover:text-primary transition-colors">
                   Connexion
                 </Link>
                 <Link
@@ -158,7 +158,7 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link to="/login" onClick={() => setIsOpen(false)} className="hover:text-primary transition-colors">
+                  <Link to="/student-login" onClick={() => setIsOpen(false)} className="hover:text-primary transition-colors">
                     Connexion
                   </Link>
                   <Link
