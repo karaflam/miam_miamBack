@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './CulinaryQuiz.css';
+import './CulinaryQuizScoped.css';
 
 interface Question {
   id: number;
@@ -184,7 +184,8 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
   if (quizState.quizCompleted) {
     const percentage = (quizState.score / questions.length) * 100;
     return (
-      <div className="quiz-container">
+      <div className="culinary-quiz">
+        <div className="quiz-container">
         <div className="quiz-completed">
           <div className="completion-icon">
             {percentage >= 70 ? '🎉' : percentage >= 50 ? '👍' : '📚'}
@@ -213,12 +214,14 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
             Recommencer le Quiz
           </button>
         </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="quiz-container">
+    <div className="culinary-quiz">
+      <div className="quiz-container">
       <div className="quiz-header">
         <div className="quiz-info">
           <span className="question-counter">
@@ -294,6 +297,7 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
             </button>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

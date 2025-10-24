@@ -1,0 +1,393 @@
+.culinary-quiz .quiz-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  min-height: 500px;
+}
+
+.culinary-quiz .quiz-header {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 1.5rem;
+  border-radius: 15px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.culinary-quiz .quiz-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.culinary-quiz .question-counter {
+  font-size: 1.1rem;
+  color: #667eea;
+}
+
+.culinary-quiz .current-score {
+  font-size: 1rem;
+  color: #764ba2;
+}
+
+.culinary-quiz .progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.culinary-quiz .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+  border-radius: 10px;
+}
+
+.culinary-quiz .timer {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.culinary-quiz .timer-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #667eea;
+  padding: 0.5rem 1rem;
+  background: #f0f0f0;
+  border-radius: 20px;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.culinary-quiz .timer-value.warning {
+  color: #ff4757;
+  animation: pulse 0.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.culinary-quiz .quiz-content {
+  background: rgba(255, 255, 255, 0.98);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.culinary-quiz .question-card {
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.culinary-quiz .question-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+}
+
+.culinary-quiz .question-points {
+  display: inline-block;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #333;
+  padding: 0.5rem 1.5rem;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+}
+
+.culinary-quiz .options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.culinary-quiz .option-button {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #f8f9fa;
+  border: 3px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.culinary-quiz .option-button:hover:not(.disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+  background: #fff;
+}
+
+.culinary-quiz .option-button.correct {
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+  color: white;
+  border-color: #27ae60;
+  animation: correctAnswer 0.5s ease;
+}
+
+.culinary-quiz .option-button.incorrect {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+  border-color: #c0392b;
+  animation: incorrectAnswer 0.5s ease;
+}
+
+.culinary-quiz .option-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes correctAnswer {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes incorrectAnswer {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.culinary-quiz .option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.culinary-quiz .option-button.correct .option-letter,
+.culinary-quiz .option-button.incorrect .option-letter {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.culinary-quiz .option-text {
+  flex: 1;
+  color: #2c3e50;
+}
+
+.culinary-quiz .option-button.correct .option-text,
+.culinary-quiz .option-button.incorrect .option-text {
+  color: white;
+}
+
+.culinary-quiz .check-icon,
+.culinary-quiz .cross-icon {
+  position: absolute;
+  right: 1rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.culinary-quiz .answer-feedback {
+  padding: 1.5rem;
+  border-radius: 12px;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.culinary-quiz .answer-feedback.correct {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  border: 2px solid #28a745;
+}
+
+.culinary-quiz .answer-feedback.incorrect {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border: 2px solid #dc3545;
+}
+
+.culinary-quiz .feedback-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.culinary-quiz .feedback-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.culinary-quiz .next-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2.5rem;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.culinary-quiz .next-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+/* Quiz Completed */
+.culinary-quiz .quiz-completed {
+  text-align: center;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 15px;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.culinary-quiz .completion-icon {
+  font-size: 5rem;
+  margin-bottom: 1rem;
+  animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.culinary-quiz .quiz-completed h2 {
+  font-size: 2.5rem;
+  color: #2c3e50;
+  margin-bottom: 2rem;
+  font-weight: 800;
+}
+
+.culinary-quiz .final-score {
+  display: flex;
+  justify-content: space-around;
+  margin: 2rem 0;
+  gap: 1rem;
+}
+
+.culinary-quiz .score-item {
+  flex: 1;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.culinary-quiz .score-item.highlight {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  transform: scale(1.05);
+}
+
+.culinary-quiz .score-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.culinary-quiz .score-item.highlight .score-label {
+  color: #333;
+}
+
+.culinary-quiz .score-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.culinary-quiz .score-item.highlight .score-value {
+  color: #333;
+}
+
+.culinary-quiz .completion-message {
+  font-size: 1.2rem;
+  color: #555;
+  margin: 2rem 0;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.culinary-quiz .restart-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1.25rem 3rem;
+  border-radius: 30px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  margin-top: 1rem;
+}
+
+.culinary-quiz .restart-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .quiz-container {
+    padding: 1rem;
+  }
+
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .question-text {
+    font-size: 1.2rem;
+  }
+
+  .final-score {
+    flex-direction: column;
+  }
+
+  .quiz-completed h2 {
+    font-size: 2rem;
+  }
+}

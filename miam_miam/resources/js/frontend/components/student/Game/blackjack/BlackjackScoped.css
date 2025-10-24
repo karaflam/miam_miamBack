@@ -1,9 +1,8 @@
+/* Scope tous les styles au jeu de Blackjack uniquement */
 .blackjack-game {
     font-family: 'Arial', sans-serif;
     color: white;
     padding: 20px;
-    background: linear-gradient(135deg, #f0f, #8c0443);
-    min-height: 100vh;
 }
 
 .blackjack-game .container {
@@ -32,23 +31,23 @@
     border-radius: 10px;
 }
 
-.info-item {
+.blackjack-game .info-item {
     text-align: center;
 }
 
-.info-value {
+.blackjack-game .info-value {
     font-size: 1.5em;
     font-weight: bold;
     color: #ffd700;
 }
 
-.hands-container {
+.blackjack-game .hands-container {
     display: flex;
     justify-content: space-between;
     margin-bottom: 30px;
 }
 
-.hand {
+.blackjack-game .hand {
     flex: 1;
     margin: 0 10px;
     background: rgba(255, 255, 255, 0.1);
@@ -57,14 +56,14 @@
     min-height: 150px;
 }
 
-.hand-title {
+.blackjack-game .hand-title {
     text-align: center;
     margin-bottom: 15px;
     color: #ffd700;
     font-size: 1.2em;
 }
 
-.cards {
+.blackjack-game .cards {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -72,7 +71,7 @@
     min-height: 80px;
 }
 
-.card {
+.blackjack-game .card {
     width: 60px;
     height: 80px;
     background: white;
@@ -86,20 +85,20 @@
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-.card.red {
+.blackjack-game .card.red {
     color: #d40000;
 }
 
-.card-top, .card-bottom {
+.blackjack-game .card-top, .blackjack-game .card-bottom {
     font-size: 0.8em;
 }
 
-.card-center {
+.blackjack-game .card-center {
     font-size: 1.2em;
     text-align: center;
 }
 
-.card-back {
+.blackjack-game .card-back {
     background: linear-gradient(45deg, #d40000, #ff6b6b);
     color: white;
     display: flex;
@@ -108,7 +107,7 @@
     font-size: 1.5em;
 }
 
-.total-display {
+.blackjack-game .total-display {
     margin-top: 10px;
     text-align: center;
     font-weight: bold;
@@ -117,14 +116,14 @@
     font-size: 1.1em;
 }
 
-.controls {
+.blackjack-game .controls {
     display: flex;
     flex-direction: column;
     gap: 15px;
     margin-bottom: 20px;
 }
 
-.bet-controls, .game-controls {
+.blackjack-game .bet-controls, .blackjack-game .game-controls {
     display: flex;
     gap: 10px;
     margin-bottom: 10px;
@@ -132,7 +131,7 @@
     flex-wrap: wrap;
 }
 
-button {
+.blackjack-game button {
     padding: 12px 24px;
     border: none;
     border-radius: 8px;
@@ -144,37 +143,37 @@ button {
     font-size: 1em;
 }
 
-button:hover:not(:disabled) {
+.blackjack-game button:hover:not(:disabled) {
     background: #ffed4a;
     transform: translateY(-2px);
 }
 
-button:disabled {
+.blackjack-game button:disabled {
     background: #666;
     color: #999;
     cursor: not-allowed;
     transform: none;
 }
 
-.action-btn {
+.blackjack-game .action-btn {
     background: #4CAF50;
     color: white;
 }
 
-.action-btn:hover:not(:disabled) {
+.blackjack-game .action-btn:hover:not(:disabled) {
     background: #45a049;
 }
 
-.danger-btn {
+.blackjack-game .danger-btn {
     background: #f44336;
     color: white;
 }
 
-.danger-btn:hover:not(:disabled) {
+.blackjack-game .danger-btn:hover:not(:disabled) {
     background: #da190b;
 }
 
-input[type="number"] {
+.blackjack-game input[type="number"] {
     padding: 12px;
     border: 2px solid #ffd700;
     border-radius: 8px;
@@ -185,7 +184,7 @@ input[type="number"] {
     text-align: center;
 }
 
-.message {
+.blackjack-game .message {
     text-align: center;
     padding: 15px;
     margin: 15px 0;
@@ -195,22 +194,22 @@ input[type="number"] {
     background: rgba(255, 255, 255, 0.1);
 }
 
-.victory-message {
+.blackjack-game .victory-message {
     background: rgba(76, 175, 80, 0.3);
     color: #4CAF50;
 }
 
-.defeat-message {
+.blackjack-game .defeat-message {
     background: rgba(244, 67, 54, 0.3);
     color: #f44336;
 }
 
-.info-message {
+.blackjack-game .info-message {
     background: rgba(255, 215, 0, 0.3);
     color: #ffd700;
 }
 
-.special-condition {
+.blackjack-game .special-condition {
     background: rgba(255, 215, 0, 0.3);
     color: #ffd700;
     border: 2px solid #ffd700;
@@ -221,29 +220,29 @@ input[type="number"] {
 }
 
 @media (max-width: 768px) {
-    .hands-container {
+    .blackjack-game .hands-container {
         flex-direction: column;
         gap: 20px;
     }
     
-    .hand {
+    .blackjack-game .hand {
         margin: 0;
     }
     
-    .game-controls {
+    .blackjack-game .game-controls {
         flex-direction: column;
     }
     
-    button {
+    .blackjack-game button {
         width: 100%;
     }
     
-    .bet-controls {
+    .blackjack-game .bet-controls {
         flex-direction: column;
         align-items: center;
     }
     
-    input[type="number"] {
+    .blackjack-game input[type="number"] {
         width: 100%;
         max-width: 200px;
     }

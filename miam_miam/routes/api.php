@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\CommandeController;
+use App\Http\Controllers\Api\ReclamationController;
 use App\Http\Controllers\Api\PaiementController;
 use App\Http\Controllers\Api\StatistiqueController;
 use App\Http\Controllers\Api\UsagePromoController;
@@ -53,6 +54,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/commandes', [CommandeController::class, 'store']);
     Route::get('/commandes/mes-commandes', [CommandeController::class, 'index']);
     Route::get('/commandes/{id}', [CommandeController::class, 'show']);
+    
+    // Réclamations
+    Route::post('/reclamations', [ReclamationController::class, 'store']);
+    Route::get('/reclamations/mes-reclamations', [ReclamationController::class, 'index']);
+    Route::get('/reclamations/{id}', [ReclamationController::class, 'show']);
+    Route::put('/reclamations/{id}/annuler', [ReclamationController::class, 'cancel']);
     
     // Paiements
     Route::post('/paiement/initier', [PaiementController::class, 'initier']);

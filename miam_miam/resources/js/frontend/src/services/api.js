@@ -219,4 +219,138 @@ export const referralService = {
   },
 }
 
+// Services de commandes
+export const orderService = {
+  /**
+   * Créer une nouvelle commande
+   * @param {Object} orderData - Données de la commande
+   * @param {string} orderData.type_livraison - 'livraison' ou 'sur_place'
+   * @param {string} orderData.heure_arrivee - Heure souhaitée (format HH:mm)
+   * @param {string} orderData.adresse_livraison - Adresse (si livraison)
+   * @param {string} orderData.commentaire_client - Commentaire optionnel
+   * @param {Array} orderData.articles - Liste des articles [{id, prix, quantite}]
+   */
+  async createOrder(orderData) {
+    try {
+      const response = await api.post('/commandes', orderData)
+      if (response.data) {
+        return { success: true, data: response.data }
+      }
+      return { success: false, error: 'Erreur lors de la création de la commande' }
+    } catch (error) {
+      const message = error.response?.data?.message || error.response?.data?.error || 'Erreur lors de la création de la commande'
+      const errors = error.response?.data?.errors || {}
+      return { success: false, error: message, errors }
+    }
+  },
+
+  /**
+   * Récupérer les commandes de l'utilisateur connecté
+   */
+  async getMyOrders() {
+    try {
+      const response = await api.get('/commandes/mes-commandes')
+      if (response.data.success || response.data.data) {
+        return { success: true, data: response.data.data || response.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération des commandes' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération des commandes'
+      return { success: false, error: message }
+    }
+  },
+
+  /**
+   * Récupérer les détails d'une commande
+   * @param {number} orderId - ID de la commande
+   */
+  async getOrderDetails(orderId) {
+    try {
+      const response = await api.get(`/commandes/${orderId}`)
+      if (response.data.success || response.data.data) {
+        return { success: true, data: response.data.data || response.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération des détails' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération des détails'
+      return { success: false, error: message }
+    }
+  },
+}
+
+// Services de réclamations
+export const claimService = {
+  /**
+   * Créer une nouvelle réclamation
+   * @param {Object} claimData - Données de la réclamation
+   * @param {number} claimData.id_commande - ID de la commande concernée (optionnel)
+   * @param {string} claimData.type_reclamation - Type de réclamation
+   * @param {string} claimData.description - Description détaillée
+   * @param {string} claimData.priorite - 'basse', 'moyenne', 'haute'
+   */
+  async createClaim(claimData) {
+    try {
+      const response = await api.post('/reclamations', claimData)
+      if (response.data.success || response.data.data) {
+        return { success: true, data: response.data.data || response.data }
+      }
+      return { success: false, error: 'Erreur lors de la création de la réclamation' }
+    } catch (error) {
+      const message = error.response?.data?.message || error.response?.data?.error || 'Erreur lors de la création de la réclamation'
+      const errors = error.response?.data?.errors || {}
+      return { success: false, error: message, errors }
+    }
+  },
+
+  /**
+   * Récupérer les réclamations de l'utilisateur connecté
+   */
+  async getMyClaims() {
+    try {
+      const response = await api.get('/reclamations/mes-reclamations')
+      if (response.data.success || response.data.data) {
+        return { success: true, data: response.data.data || response.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération des réclamations' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération des réclamations'
+      return { success: false, error: message }
+    }
+  },
+
+  /**
+   * Récupérer les détails d'une réclamation
+   * @param {number} claimId - ID de la réclamation
+   */
+  async getClaimDetails(claimId) {
+    try {
+      const response = await api.get(`/reclamations/${claimId}`)
+      if (response.data.success || response.data.data) {
+        return { success: true, data: response.data.data || response.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération des détails' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération des détails'
+      return { success: false, error: message }
+    }
+  },
+
+  /**
+   * Annuler une réclamation
+   * @param {number} claimId - ID de la réclamation
+   */
+  async cancelClaim(claimId) {
+    try {
+      const response = await api.put(`/reclamations/${claimId}/annuler`)
+      if (response.data.success) {
+        return { success: true, message: response.data.message }
+      }
+      return { success: false, error: 'Erreur lors de l\'annulation' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de l\'annulation'
+      return { success: false, error: message }
+    }
+  },
+}
+
 export default api

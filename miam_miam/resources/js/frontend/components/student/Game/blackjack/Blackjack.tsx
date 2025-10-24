@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import './Blackjack.css';
+import './BlackjackScoped.css';
 
 interface Card {
   valeur: string;
@@ -179,37 +179,40 @@ const Jeu21: React.FC = () => {
     let totalCroupier = calculerMain(mainCroupier);
     let nouveauPaquet = [...gameState.paquet];
 
-    // Tour du croupier
-    if (joueurTermine && totalJoueur <= 21) {
-      while (totalCroupier < 17) {
-        const { carte, nouveauPaquet: updatedPaquet } = tirerCarte(nouveauPaquet);
-        mainCroupier.push(carte);
-        nouveauPaquet = updatedPaquet;
-        totalCroupier = calculerMain(mainCroupier);
-      }
-    }
-
-    // Déterminer le gagnant
+    // Vérifier d'abord si le joueur a dépassé
     if (totalJoueur > 21) {
       message = 'Dépassé! Vous avez perdu.';
       victoire = false;
       nouvellesVictoires = 0;
       nouveauSolde -= gameState.mise;
-    } else if (totalCroupier > 21) {
-      message = 'Croupier dépassé! Vous gagnez!';
-      victoire = true;
-    } else if (totalJoueur > totalCroupier) {
-      message = 'Vous gagnez!';
-      victoire = true;
-    } else if (totalJoueur < totalCroupier) {
-      message = 'Croupier gagne!';
-      victoire = false;
-      nouvellesVictoires = 0;
-      nouveauSolde -= gameState.mise;
     } else {
-      message = 'Égalité! Mise remboursée.';
-      victoire = false;
-      // En cas d'égalité, on ne change pas le solde ni les victoires
+      // Tour du croupier seulement si le joueur n'a pas dépassé
+      if (joueurTermine) {
+        while (totalCroupier < 17) {
+          const { carte, nouveauPaquet: updatedPaquet } = tirerCarte(nouveauPaquet);
+          mainCroupier.push(carte);
+          nouveauPaquet = updatedPaquet;
+          totalCroupier = calculerMain(mainCroupier);
+        }
+      }
+
+      // Déterminer le gagnant
+      if (totalCroupier > 21) {
+        message = 'Croupier dépassé! Vous gagnez!';
+        victoire = true;
+      } else if (totalJoueur > totalCroupier) {
+        message = 'Vous gagnez!';
+        victoire = true;
+      } else if (totalJoueur < totalCroupier) {
+        message = 'Croupier gagne!';
+        victoire = false;
+        nouvellesVictoires = 0;
+        nouveauSolde -= gameState.mise;
+      } else {
+        message = 'Égalité! Mise remboursée.';
+        victoire = false;
+        // En cas d'égalité, on ne change pas le solde ni les victoires
+      }
     }
 
     // Appliquer les gains en cas de victoire
@@ -268,13 +271,13 @@ const Jeu21: React.FC = () => {
   const afficherCarte = (carte: Card, index: number, reveler: boolean, estCroupier: boolean = false) => {
     if (estCroupier && index === 1 && !reveler) {
       return (
-        <div className="card card-back">?</div>
+        <div key={index} className="card card-back">?</div>
       );
     }
 
     const estRouge = ['♡', '♢'].includes(carte.couleur);
     return (
-      <div className={`card ${estRouge ? 'red' : ''}`}>
+      <div key={index} className={`card ${estRouge ? 'red' : ''}`}>
         <div className="card-top">{carte.valeur}</div>
         <div className="card-center">{carte.couleur}</div>
         <div className="card-bottom">{carte.valeur}</div>
@@ -300,8 +303,9 @@ const Jeu21: React.FC = () => {
   }, [initialiserPaquet]);
 
   return (
-    <div className="container">
-      <h1>🎰 Black-Jack 🎰</h1>
+    <div className="blackjack-game">
+      <div className="container">
+        <h1>🎰 Black-Jack 🎰</h1>
       
       <div className="game-info">
         <div className="info-item">
@@ -408,6 +412,7 @@ const Jeu21: React.FC = () => {
           {gameState.message}
         </div>
       )}
+      </div>
     </div>
   );
 };

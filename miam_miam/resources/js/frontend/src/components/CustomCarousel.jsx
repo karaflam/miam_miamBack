@@ -4,17 +4,17 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const carouselItems = [
   {
-    image: "https://images.unsplash.com/photo-1608039755401-742074f0548d?w=1200&h=800&fit=crop&crop=center",
+    image: "https://images.unsplash.com/photo-1598866594230-a7c12756260f?w=1200&h=800&fit=crop&crop=center",
     title: "Ndolé Traditionnel,",
     subtitle: "Spécialité Camerounaise",
   },
   {
-    image: "https://images.unsplash.com/photo-1598866594230-a7c12756260f?w=1200&h=800&fit=crop&crop=center",
+    image: "https://images.unsplash.com/photo-1608039755401-742074f0548d?w=1200&h=800&fit=crop&crop=center",
     title: "Poulet DG & Plantains,",
     subtitle: "Saveurs Authentiques",
   },
   {
-    image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8385?w=1200&h=800&fit=crop&crop=center",
+    image: "https://media.istockphoto.com/id/1049262176/fr/photo/dessus-de-table-de-la-cuisine-avec-des-sauces-traditionnelles-et-alimentaire-en-afrique-avec.webp?a=1&b=1&s=612x612&w=0&k=20&c=FS7G9GwUt7jFWQ95TA7QLRWlhfSL8b5rEVFpml3rC98=",
     title: "Cuisine Camerounaise,",
     subtitle: "Tradition & Modernité",
   },

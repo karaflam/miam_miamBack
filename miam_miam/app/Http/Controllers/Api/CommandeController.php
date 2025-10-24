@@ -47,4 +47,59 @@ class CommandeController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Récupérer les commandes de l'utilisateur connecté
+     */
+    public function index()
+    {
+        try {
+            $commandes = Commande::where('id_utilisateur', Auth::id())
+                ->with(['details.article', 'utilisateur'])
+                ->orderBy('date_commande', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => CommandeResource::collection($commandes)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des commandes',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Récupérer les détails d'une commande
+     */
+    public function show($id)
+    {
+        try {
+            $commande = Commande::where('id_commande', $id)
+                ->where('id_utilisateur', Auth::id())
+                ->with(['details.article', 'utilisateur'])
+                ->first();
+
+            if (!$commande) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Commande non trouvée'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => new CommandeResource($commande)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération de la commande',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
