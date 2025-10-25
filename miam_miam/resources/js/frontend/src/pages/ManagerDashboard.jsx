@@ -2,19 +2,33 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Chart } from 'chart.js/auto'
-import { mockMenuItems as initialMenuItems, mockOrders as initialOrders, mockUsers, mockPromotions as initialPromotions } from "../data/mockData"
-import EmployeeManagement from "../components/manager/EmployeeManagement"
+import { mockOrders as initialOrders, mockUsers, mockPromotions as initialPromotions } from "../data/mockData"
 import { 
   DollarSign, TrendingUp, Users, ShoppingBag, Plus, Edit, Eye, EyeOff, 
   BarChart3, Package, UserPlus, AlertCircle, Clock, CheckCircle, 
   XCircle, Bell, Settings, Calendar, TrendingDown, Activity,
-  MessageSquare, Award, Gift, RefreshCw, Search, Filter, Trash2, UserCog, Tag
+  MessageSquare, Award, Gift, RefreshCw, Search, Filter, Trash2, UserCog, Tag, Ban, X
 } from "lucide-react"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard")
-  const [menuItems, setMenuItems] = useState(initialMenuItems)
+  const [menuItems, setMenuItems] = useState([])
+  const [categories, setCategories] = useState([])
+  const [isLoadingMenu, setIsLoadingMenu] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [searchMenuTerm, setSearchMenuTerm] = useState('')
+  const [showMenuItemModal, setShowMenuItemModal] = useState(false)
+  const [editingMenuItem, setEditingMenuItem] = useState(null)
+  const [menuFormData, setMenuFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    category: '',
+    available: true,
+    temps_preparation: '',
+    image: ''
+  })
   const [orders, setOrders] = useState(initialOrders)
   const [promotions, setPromotions] = useState(initialPromotions)
   const [showPromoModal, setShowPromoModal] = useState(false)
@@ -23,13 +37,16 @@ export default function ManagerDashboard() {
   const [roleFilter, setRoleFilter] = useState("all")
   const [showUserModal, setShowUserModal] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
+  const [users, setUsers] = useState([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [userFormData, setUserFormData] = useState({
-    name: "",
+    nom: "",
+    prenom: "",
     email: "",
-    phone: "",
-    role: "student",
-    balance: 0,
-    loyaltyPoints: 0,
+    telephone: "",
+    role: "employee",
+    password: "",
+    localisation: ""
   })
   const [promoFormData, setPromoFormData] = useState({
     title: "",
@@ -39,29 +56,7 @@ export default function ManagerDashboard() {
     startDate: "",
     endDate: "",
   })
-  const [employees] = useState([
-    {
-      id: "1",
-      name: "Marie Leroy",
-      email: "marie.leroy@email.com",
-      role: "employee",
-      status: "online"
-    },
-    {
-      id: "2",
-      name: "Thomas Dubois",
-      email: "thomas.dubois@email.com",
-      role: "employee",
-      status: "pause"
-    },
-    {
-      id: "3",
-      name: "Sophie Bernard",
-      email: "sophie.bernard@email.com",
-      role: "employee",
-      status: "offline"
-    }
-  ])
+  const [employees, setEmployees] = useState([])
   const [complaints, setComplaints] = useState([
     {
       id: "1",
@@ -294,6 +289,460 @@ export default function ManagerDashboard() {
       available: true,
     })
   }
+
+  // Fonctions Menu
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/categories', {
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur catégories:', error);
+    }
+  };
+
+  const fetchMenuItems = async () => {
+    setIsLoadingMenu(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      let url = 'http://localhost:8000/api/menu';
+      const params = new URLSearchParams();
+      
+      if (selectedCategory !== 'all') {
+        params.append('categorie', selectedCategory);
+      }
+      if (searchMenuTerm) {
+        params.append('search', searchMenuTerm);
+      }
+      
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setMenuItems(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur menu:', error);
+    } finally {
+      setIsLoadingMenu(false);
+    }
+  };
+
+  const handleCreateMenuItem = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/menu', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nom_article: menuFormData.name,
+          description: menuFormData.description,
+          prix: parseFloat(menuFormData.price),
+          id_categorie: parseInt(menuFormData.category),
+          disponible: menuFormData.available ? 'oui' : 'non',
+          temps_preparation: menuFormData.temps_preparation ? parseInt(menuFormData.temps_preparation) : null,
+          url_image: menuFormData.image || null
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || JSON.stringify(errorData.errors)));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Article créé avec succès!');
+      setShowMenuItemModal(false);
+      resetMenuForm();
+      fetchMenuItems();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la création de l\'article');
+    }
+  };
+
+  const handleUpdateMenuItem = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/menu/${editingMenuItem.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nom_article: menuFormData.name,
+          description: menuFormData.description,
+          prix: parseFloat(menuFormData.price),
+          id_categorie: parseInt(menuFormData.category),
+          disponible: menuFormData.available ? 'oui' : 'non',
+          temps_preparation: menuFormData.temps_preparation ? parseInt(menuFormData.temps_preparation) : null,
+          url_image: menuFormData.image || null
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || JSON.stringify(errorData.errors)));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Article modifié avec succès!');
+      setShowMenuItemModal(false);
+      setEditingMenuItem(null);
+      resetMenuForm();
+      fetchMenuItems();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la modification de l\'article');
+    }
+  };
+
+  const handleDeleteMenuItem = async (item) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${item.nom}" ?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/menu/${item.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de supprimer l\'article'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Article supprimé avec succès!');
+      fetchMenuItems();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la suppression de l\'article');
+    }
+  };
+
+  const handleToggleDisponibilite = async (item) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/menu/${item.id}/toggle-disponibilite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de modifier la disponibilité'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message);
+      fetchMenuItems();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la modification de la disponibilité');
+    }
+  };
+
+  const handleEditMenuItem = (item) => {
+    setEditingMenuItem(item);
+    setMenuFormData({
+      name: item.nom,
+      description: item.description || '',
+      price: item.prix.toString(),
+      category: item.categorie?.id?.toString() || '',
+      available: item.disponible,
+      temps_preparation: item.temps_preparation?.toString() || '',
+      image: item.image || ''
+    });
+    setShowMenuItemModal(true);
+  };
+
+  const resetMenuForm = () => {
+    setMenuFormData({
+      name: '',
+      description: '',
+      price: '',
+      category: '',
+      available: true,
+      temps_preparation: '',
+      image: ''
+    });
+    setEditingMenuItem(null);
+  };
+
+  useEffect(() => {
+    if (activeTab === "menu") {
+      fetchCategories();
+      fetchMenuItems();
+    }
+    if (activeTab === "employees") {
+      fetchUsers();
+    }
+  }, [activeTab, selectedCategory, searchMenuTerm, roleFilter, searchTerm]);
+
+  // Fonctions de gestion des utilisateurs/employés
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      let url = 'http://localhost:8000/api/admin/users';
+      const params = new URLSearchParams();
+      
+      if (roleFilter !== 'all') {
+        params.append('role', roleFilter);
+      }
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        // Filtrer pour exclure les admins (le gérant ne doit pas voir les admins)
+        const filteredUsers = data.data.data.filter(user => user.role !== 'admin');
+        setUsers(filteredUsers);
+        // Séparer les employés pour la section employees
+        setEmployees(filteredUsers.filter(u => u.role === 'employee' || u.role === 'manager'));
+      }
+    } catch (error) {
+      console.error('Erreur utilisateurs:', error);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const handleCreateUser = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nom: userFormData.nom,
+          prenom: userFormData.prenom,
+          email: userFormData.email,
+          telephone: userFormData.telephone,
+          password: userFormData.password,
+          role: userFormData.role,
+          localisation: userFormData.localisation || null
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || JSON.stringify(errorData.errors)));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur créé avec succès!');
+      setShowUserModal(false);
+      resetUserForm();
+      fetchUsers();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la création de l\'utilisateur');
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const updateData = {
+        nom: userFormData.nom,
+        prenom: userFormData.prenom,
+        email: userFormData.email,
+        telephone: userFormData.telephone,
+        role: userFormData.role,
+        localisation: userFormData.localisation || null
+      };
+      
+      // Ajouter le mot de passe seulement s'il est fourni
+      if (userFormData.password) {
+        updateData.password = userFormData.password;
+      }
+
+      const response = await fetch(`http://localhost:8000/api/admin/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || JSON.stringify(errorData.errors)));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur modifié avec succès!');
+      setShowUserModal(false);
+      setEditingUser(null);
+      resetUserForm();
+      fetchUsers();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la modification de l\'utilisateur');
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${user.prenom} ${user.nom} ?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/admin/users/${user.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de supprimer l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur supprimé avec succès!');
+      fetchUsers();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la suppression de l\'utilisateur');
+    }
+  };
+
+  const handleSuspendUser = async (user) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/admin/users/${user.id}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de suspendre l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message);
+      fetchUsers();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la suspension de l\'utilisateur');
+    }
+  };
+
+  const handleActivateUser = async (user) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/admin/users/${user.id}/activate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible d\'activer l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message);
+      fetchUsers();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de l\'activation de l\'utilisateur');
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setUserFormData({
+      nom: user.nom,
+      prenom: user.prenom,
+      email: user.email,
+      telephone: user.telephone || '',
+      role: user.role,
+      password: '',
+      localisation: user.localisation || ''
+    });
+    setShowUserModal(true);
+  };
+
+  const resetUserForm = () => {
+    setUserFormData({
+      nom: '',
+      prenom: '',
+      email: '',
+      telephone: '',
+      role: 'employee',
+      password: '',
+      localisation: ''
+    });
+    setEditingUser(null);
+  };
 
   // Fonctions de gestion des promotions
   const handlePromoFormChange = (e) => {
@@ -803,11 +1252,14 @@ export default function ManagerDashboard() {
 
         {/* Menu Tab */}
         {activeTab === "menu" && (
-          <div>
+          <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h2 className="text-xl sm:text-2xl font-bold">Gestion du menu</h2>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetMenuForm();
+                  setShowMenuItemModal(true);
+                }}
                 className="bg-[#cfbd97] text-black px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -815,58 +1267,119 @@ export default function ManagerDashboard() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {menuItems.map((item) => (
-                <div key={item.id} className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="relative">
-                    <img src={item.image || "/placeholder.svg"} alt={item.name} className="w-full h-48 object-cover" />
-                    {!item.available && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">Indisponible</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4 sm:p-6">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="text-base sm:text-lg font-bold mb-1">{item.name}</h3>
-                        <p className="text-xs text-gray-500 mb-2">{item.category}</p>
-                      </div>
-                      <p className="text-lg sm:text-xl font-bold text-[#cfbd97]">{item.price.toLocaleString()} F</p>
-                    </div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-4">{item.description}</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => toggleAvailability(item.id)}
-                        className={`flex-1 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-sm ${
-                          item.available
-                            ? "bg-gray-200 text-black hover:bg-gray-300"
-                            : "bg-green-500/20 text-green-700 hover:bg-green-500/30"
-                        }`}
-                      >
-                        {item.available ? (
-                          <>
-                            <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />
-                            Masquer
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                            Afficher
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => openEditModal(item)}
-                        className="px-3 sm:px-4 py-2 bg-[#cfbd97] text-black rounded-lg hover:bg-[#b5a082] transition-colors"
-                      >
-                        <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            {/* Filtres */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Rechercher un plat..."
+                  value={searchMenuTerm}
+                  onChange={(e) => setSearchMenuTerm(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                />
+              </div>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+              >
+                <option value="all">Toutes les catégories</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.nom}</option>
+                ))}
+              </select>
             </div>
+
+            {/* Liste des articles */}
+            {isLoadingMenu ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#cfbd97]"></div>
+                <p className="mt-4 text-gray-600">Chargement du menu...</p>
+              </div>
+            ) : menuItems.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 text-lg">Aucun article dans le menu</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {menuItems.map((item) => (
+                  <FadeInOnScroll key={item.id}>
+                    <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="relative h-48 bg-gray-200">
+                        {item.image ? (
+                          <img 
+                            src={item.image} 
+                            alt={item.nom}
+                            className="w-full h-full object-cover"
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <Package className="w-16 h-16 text-gray-400" />
+                          </div>
+                        )}
+                        
+                        <div className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-medium ${
+                          item.disponible ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                        }`}>
+                          {item.disponible ? 'Disponible' : 'Indisponible'}
+                        </div>
+                      </div>
+
+                      <div className="p-4 sm:p-6">
+                        <h3 className="text-base sm:text-lg font-bold mb-2">{item.nom}</h3>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                        
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-lg sm:text-xl font-bold text-[#cfbd97]">{item.prix} FCFA</span>
+                          {item.temps_preparation && (
+                            <span className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                              {item.temps_preparation} min
+                            </span>
+                          )}
+                        </div>
+
+                        {item.categorie && (
+                          <div className="mb-3">
+                            <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                              {item.categorie.nom}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleToggleDisponibilite(item)}
+                            className={`flex-1 px-3 py-2 rounded text-sm font-medium ${
+                              item.disponible 
+                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
+                          >
+                            {item.disponible ? <Ban className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" /> : <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />}
+                            {item.disponible ? 'Désactiver' : 'Activer'}
+                          </button>
+                          <button
+                            onClick={() => handleEditMenuItem(item)}
+                            className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                          >
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMenuItem(item)}
+                            className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeInOnScroll>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -944,7 +1457,171 @@ export default function ManagerDashboard() {
         )}
 
         {/* Employees Tab */}
-        {activeTab === "employees" && <EmployeeManagement />}
+        {activeTab === "employees" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold">Gestion des Employés</h2>
+              <button
+                onClick={() => {
+                  resetUserForm();
+                  setShowUserModal(true);
+                }}
+                className="bg-[#cfbd97] text-black px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                Ajouter un employé
+              </button>
+            </div>
+
+            {/* Filtres */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, email ou téléphone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                />
+              </div>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+              >
+                <option value="all">Tous les rôles</option>
+                <option value="student">Étudiants</option>
+                <option value="employee">Employés</option>
+                <option value="manager">Gérants</option>
+              </select>
+            </div>
+
+            {/* Liste des utilisateurs */}
+            {isLoadingUsers ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#cfbd97]"></div>
+                <p className="mt-4 text-gray-600">Chargement des utilisateurs...</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 text-lg">Aucun utilisateur trouvé</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Utilisateur
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Contact
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rôle
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Statut
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date création
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 bg-[#cfbd97] rounded-full flex items-center justify-center text-white font-bold">
+                                {user.prenom?.charAt(0)}{user.nom?.charAt(0)}
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {user.prenom} {user.nom}
+                                </div>
+                                {user.localisation && (
+                                  <div className="text-sm text-gray-500">{user.localisation}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{user.email}</div>
+                            {user.telephone && (
+                              <div className="text-sm text-gray-500">{user.telephone}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.role === 'manager' ? 'bg-purple-100 text-purple-800' :
+                              user.role === 'employee' ? 'bg-blue-100 text-blue-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {user.role === 'manager' ? 'Gérant' : 
+                               user.role === 'employee' ? 'Employé' : 
+                               'Étudiant'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.statut === 'actif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.statut === 'actif' ? 'Actif' : 'Suspendu'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(user.date_creation).toLocaleDateString('fr-FR')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => handleEditUser(user)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Modifier"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              {user.statut === 'actif' ? (
+                                <button
+                                  onClick={() => handleSuspendUser(user)}
+                                  className="text-yellow-600 hover:text-yellow-900"
+                                  title="Suspendre"
+                                >
+                                  <Ban className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleActivateUser(user)}
+                                  className="text-green-600 hover:text-green-900"
+                                  title="Activer"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteUser(user)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Complaints Tab */}
         {activeTab === "complaints" && (
@@ -1244,6 +1921,144 @@ export default function ManagerDashboard() {
                   className="flex-1 bg-[#cfbd97] text-black py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors"
                 >
                   {editingPromo ? "Modifier" : "Ajouter"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* User Modal */}
+      {showUserModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowUserModal(false);
+            setEditingUser(null);
+            resetUserForm();
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl sm:text-2xl font-bold mb-6">
+              {editingUser ? "Modifier l'utilisateur" : "Ajouter un utilisateur"}
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                editingUser ? handleUpdateUser() : handleCreateUser();
+              }}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Prénom *</label>
+                  <input
+                    type="text"
+                    value={userFormData.prenom}
+                    onChange={(e) => setUserFormData({...userFormData, prenom: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Nom *</label>
+                  <input
+                    type="text"
+                    value={userFormData.nom}
+                    onChange={(e) => setUserFormData({...userFormData, nom: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Email *</label>
+                <input
+                  type="email"
+                  value={userFormData.email}
+                  onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Téléphone</label>
+                <input
+                  type="tel"
+                  value={userFormData.telephone}
+                  onChange={(e) => setUserFormData({...userFormData, telephone: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  placeholder="+237 6XX XX XX XX"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Rôle *</label>
+                <select
+                  value={userFormData.role}
+                  onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
+                >
+                  <option value="student">Étudiant</option>
+                  <option value="employee">Employé</option>
+                  <option value="manager">Gérant</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Note: Vous ne pouvez pas créer d'administrateurs
+                </p>
+              </div>
+
+              {userFormData.role === 'student' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Localisation</label>
+                  <input
+                    type="text"
+                    value={userFormData.localisation}
+                    onChange={(e) => setUserFormData({...userFormData, localisation: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                    placeholder="Ex: Campus Ngoa Ekelle"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Mot de passe {editingUser ? '(laisser vide pour ne pas changer)' : '*'}
+                </label>
+                <input
+                  type="password"
+                  value={userFormData.password}
+                  onChange={(e) => setUserFormData({...userFormData, password: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required={!editingUser}
+                  minLength="6"
+                  placeholder="Minimum 6 caractères"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserModal(false);
+                    setEditingUser(null);
+                    resetUserForm();
+                  }}
+                  className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#cfbd97] text-black py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors"
+                >
+                  {editingUser ? "Modifier" : "Créer"}
                 </button>
               </div>
             </form>

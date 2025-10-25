@@ -3,17 +3,21 @@
 import { useState, useEffect, useRef } from "react"
 import { Chart } from 'chart.js/auto'
 import { mockUsers as initialUsers, mockPromotions as initialPromotions, mockMenuItems as initialMenuItems } from "../data/mockData"
-import { Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight , Eye, EyeOff, Package, Calendar, TrendingUp} from "lucide-react"
+import { Ban, Clock, Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight , Eye, EyeOff, Package, Calendar, TrendingUp,CheckCircle} from "lucide-react"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [users, setUsers] = useState([])
   const [promotions, setPromotions] = useState(initialPromotions)
-  const [menuItems, setMenuItems] = useState(initialMenuItems)
+  const [menuItems, setMenuItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMenu, setIsLoadingMenu] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchMenuTerm, setSearchMenuTerm] = useState('');
   const [error, setError] = useState(null)
   const [showUserModal, setShowUserModal] = useState(false)
   const [showPromoModal, setShowPromoModal] = useState(false)
@@ -54,12 +58,14 @@ export default function AdminDashboard() {
   })
 
   const [menuFormData, setMenuFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    category: "Plats",
-    available: true,
-  })
+  name: '',
+  description: '',
+  price: '',
+  category: '',
+  available: true,
+  temps_preparation: '',
+  image: ''
+});
 
   const [eventFormData, setEventFormData] = useState({
     title: "",
@@ -136,7 +142,223 @@ export default function AdminDashboard() {
     dailyLimit: 3,
   })
 
-  
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/categories', {
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur catégories:', error);
+    }
+  };
+
+const fetchMenuItems = async () => {
+  setIsLoadingMenu(true);
+  try {
+    const token = localStorage.getItem('auth_token');
+    let url = 'http://localhost:8000/api/menu';
+    const params = new URLSearchParams();
+    
+    if (selectedCategory !== 'all') {
+      params.append('categorie', selectedCategory);
+    }
+    if (searchMenuTerm) {
+      params.append('search', searchMenuTerm);
+    }
+    
+    if (params.toString()) {
+      url += '?' + params.toString();
+    }
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      setMenuItems(data.data);
+    }
+  } catch (error) {
+    console.error('Erreur menu:', error);
+  } finally {
+    setIsLoadingMenu(false);
+  }
+};
+
+useEffect(() => {
+  if (activeTab === "menu") {
+    fetchCategories();
+    fetchMenuItems();
+  }
+}, [activeTab, selectedCategory, searchMenuTerm]);
+
+const handleCreateMenuItem = async () => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch('http://localhost:8000/api/menu', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        nom_article: menuFormData.name,
+        description: menuFormData.description,
+        prix: parseFloat(menuFormData.price),
+        id_categorie: parseInt(menuFormData.category),
+        disponible: menuFormData.available ? 'oui' : 'non',
+        temps_preparation: menuFormData.temps_preparation ? parseInt(menuFormData.temps_preparation) : null,
+        url_image: menuFormData.image || null
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      alert('Erreur: ' + (errorData.message || JSON.stringify(errorData.errors)));
+      return;
+    }
+
+    const data = await response.json();
+    alert(data.message || 'Article créé avec succès!');
+    setShowMenuItemModal(false);
+    resetMenuForm();
+    fetchMenuItems();
+  } catch (error) {
+    console.error('Erreur:', error);
+    alert('Erreur lors de la création de l\'article');
+  }
+};
+
+const handleUpdateMenuItem = async () => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`http://localhost:8000/api/menu/${editingMenuItem.id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        nom_article: menuFormData.name,
+        description: menuFormData.description,
+        prix: parseFloat(menuFormData.price),
+        id_categorie: parseInt(menuFormData.category),
+        disponible: menuFormData.available ? 'oui' : 'non',
+        temps_preparation: menuFormData.temps_preparation ? parseInt(menuFormData.temps_preparation) : null,
+        url_image: menuFormData.image || null
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      alert('Erreur: ' + (errorData.message || JSON.stringify(errorData.errors)));
+      return;
+    }
+
+    const data = await response.json();
+    alert(data.message || 'Article modifié avec succès!');
+    setShowMenuItemModal(false);
+    setEditingMenuItem(null);
+    resetMenuForm();
+    fetchMenuItems();
+  } catch (error) {
+    console.error('Erreur:', error);
+    alert('Erreur lors de la modification de l\'article');
+  }
+};
+
+const handleDeleteMenuItem = async (item) => {
+  if (!confirm(`Êtes-vous sûr de vouloir supprimer "${item.nom}" ?`)) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`http://localhost:8000/api/menu/${item.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      alert('Erreur: ' + (errorData.message || 'Impossible de supprimer l\'article'));
+      return;
+    }
+
+    const data = await response.json();
+    alert(data.message || 'Article supprimé avec succès!');
+    fetchMenuItems();
+  } catch (error) {
+    console.error('Erreur:', error);
+    alert('Erreur lors de la suppression de l\'article');
+  }
+};
+
+const handleToggleDisponibilite = async (item) => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`http://localhost:8000/api/menu/${item.id}/toggle-disponibilite`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      alert('Erreur: ' + (errorData.message || 'Impossible de modifier la disponibilité'));
+      return;
+    }
+
+    const data = await response.json();
+    alert(data.message);
+    fetchMenuItems();
+  } catch (error) {
+    console.error('Erreur:', error);
+    alert('Erreur lors de la modification de la disponibilité');
+  }
+};
+
+const handleEditMenuItem = (item) => {
+  setEditingMenuItem(item);
+  setMenuFormData({
+    name: item.nom,
+    description: item.description || '',
+    price: item.prix.toString(),
+    category: item.categorie?.id?.toString() || '',
+    available: item.disponible,
+    temps_preparation: item.temps_preparation?.toString() || '',
+    image: item.image || ''
+  });
+  setShowMenuItemModal(true);
+};
+
+const resetMenuForm = () => {
+  setMenuFormData({
+    name: '',
+    description: '',
+    price: '',
+    category: '',
+    available: true,
+    temps_preparation: '',
+    image: ''
+  });
+  setEditingMenuItem(null);
+};
+
 
   const handleUserFormChange = (e) => {
     const { name, value } = e.target
@@ -151,14 +373,6 @@ export default function AdminDashboard() {
     setPromoFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : name === "discount" ? Number.parseInt(value) || 0 : value,
-    }))
-  }
-
-  const handleMenuFormChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setMenuFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : name === "price" ? Number.parseFloat(value) || 0 : value,
     }))
   }
 
@@ -388,59 +602,6 @@ export default function AdminDashboard() {
       startDate: "",
       endDate: "",
     })
-  }
-
-  const resetMenuForm = () => {
-    setMenuFormData({
-      name: "",
-      description: "",
-      price: "",
-      category: "Plats",
-      available: true,
-    })
-  }
-
-  const handleAddMenuItem = () => {
-    if (menuFormData.name && menuFormData.description && menuFormData.price) {
-      const newItem = {
-        id: Date.now(),
-        name: menuFormData.name,
-        description: menuFormData.description,
-        price: parseInt(menuFormData.price),
-        category: menuFormData.category,
-        available: menuFormData.available,
-        image: "/placeholder.svg"
-      }
-      setMenuItems([...menuItems, newItem])
-      setShowMenuItemModal(false)
-      resetMenuForm()
-    }
-  }
-
-  const handleEditMenuItem = () => {
-    if (editingMenuItem && menuFormData.name && menuFormData.description && menuFormData.price) {
-      setMenuItems(prev => prev.map(item => 
-        item.id === editingMenuItem.id 
-          ? {
-              ...item,
-              name: menuFormData.name,
-              description: menuFormData.description,
-              price: parseInt(menuFormData.price),
-              category: menuFormData.category,
-              available: menuFormData.available
-            }
-          : item
-      ))
-      setShowMenuItemModal(false)
-      setEditingMenuItem(null)
-      resetMenuForm()
-    }
-  }
-
-  const handleDeleteMenuItem = (menuItemId) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer ce plat ?")) {
-      setMenuItems(menuItems.filter((item) => item.id !== menuItemId))
-    }
   }
 
   const resetEventForm = () => {
@@ -1229,11 +1390,14 @@ export default function AdminDashboard() {
         )}
 
                 {activeTab === "menu" && (
-          <div>
+          <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h2 className="text-xl sm:text-2xl font-bold">Gestion du menu</h2>
               <button
-                onClick={() => setShowMenuItemModal(true)}
+                onClick={() => {
+                  resetMenuForm();
+                  setShowMenuItemModal(true);
+                }}
                 className="bg-[#cfbd97] text-black px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-[#b5a082] transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -1241,76 +1405,119 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {menuItems.map((item) => (
-                <FadeInOnScroll key={item.id}>
-                  <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-                    <div className="relative">
-                      <img src={item.image || "/placeholder.svg"} alt={item.name} className="w-full h-48 object-cover" />
-                      {!item.available && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">Indisponible</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4 sm:p-6">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="text-base sm:text-lg font-bold mb-1">{item.name}</h3>
-                          <p className="text-xs text-gray-500 mb-2">{item.category}</p>
-                        </div>
-                        <p className="text-lg sm:text-xl font-bold text-[#cfbd97]">{item.price.toLocaleString()} F</p>
-                      </div>
-                      <p className="text-xs sm:text-sm text-gray-600 mb-4">{item.description}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setMenuItems(prev => prev.map(menuItem => 
-                              menuItem.id === item.id 
-                                ? { ...menuItem, available: !menuItem.available }
-                                : menuItem
-                            ))
-                          }}
-                          className={`flex-1 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-sm ${
-                            item.available
-                              ? "bg-gray-200 text-black hover:bg-gray-300"
-                              : "bg-green-500/20 text-green-700 hover:bg-green-500/30"
-                          }`}
-                        >
-                          {item.available ? (
-                            <>
-                              <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />
-                              Masquer
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                              Afficher
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingMenuItem(item)
-                            setMenuFormData({
-                              name: item.name,
-                              description: item.description,
-                              price: item.price.toString(),
-                              category: item.category,
-                              available: item.available,
-                            })
-                            setShowMenuItemModal(true)
-                          }}
-                          className="px-3 sm:px-4 py-2 bg-[#cfbd97] text-black rounded-lg hover:bg-[#b5a082] transition-colors"
-                        >
-                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </FadeInOnScroll>
-              ))}
+            {/* Filtres */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Rechercher un plat..."
+                  value={searchMenuTerm}
+                  onChange={(e) => setSearchMenuTerm(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                />
+              </div>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+              >
+                <option value="all">Toutes les catégories</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.nom}</option>
+                ))}
+              </select>
             </div>
+
+            {/* Liste des articles */}
+            {isLoadingMenu ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#cfbd97]"></div>
+                <p className="mt-4 text-gray-600">Chargement du menu...</p>
+              </div>
+            ) : menuItems.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 text-lg">Aucun article dans le menu</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {menuItems.map((item) => (
+                  <FadeInOnScroll key={item.id}>
+                    <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="relative h-48 bg-gray-200">
+                        {item.image ? (
+                          <img 
+                            src={item.image} 
+                            alt={item.nom}
+                            className="w-full h-full object-cover"
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <Package className="w-16 h-16 text-gray-400" />
+                          </div>
+                        )}
+                        
+                        <div className={`absolute top-2 right-2 px-3 py-1 rounded-full text-sm font-medium ${
+                          item.disponible ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                        }`}>
+                          {item.disponible ? 'Disponible' : 'Indisponible'}
+                        </div>
+                      </div>
+
+                      <div className="p-4 sm:p-6">
+                        <h3 className="text-base sm:text-lg font-bold mb-2">{item.nom}</h3>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                        
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-lg sm:text-xl font-bold text-[#cfbd97]">{item.prix} FCFA</span>
+                          {item.temps_preparation && (
+                            <span className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                              {item.temps_preparation} min
+                            </span>
+                          )}
+                        </div>
+
+                        {item.categorie && (
+                          <div className="mb-3">
+                            <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                              {item.categorie.nom}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleToggleDisponibilite(item)}
+                            className={`flex-1 px-3 py-2 rounded text-sm font-medium ${
+                              item.disponible 
+                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
+                          >
+                            {item.disponible ? <Ban className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" /> : <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />}
+                            {item.disponible ? 'Désactiver' : 'Activer'}
+                          </button>
+                          <button
+                            onClick={() => handleEditMenuItem(item)}
+                            className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                          >
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMenuItem(item)}
+                            className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeInOnScroll>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1988,18 +2195,18 @@ export default function AdminDashboard() {
             <form
               onSubmit={(e) => {
                 e.preventDefault()
-                editingMenuItem ? handleEditMenuItem() : handleAddMenuItem()
+                editingMenuItem ? handleUpdateMenuItem() : handleCreateMenuItem()
               }}
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium mb-2">Nom</label>
+                <label className="block text-sm font-medium mb-2">Nom du plat *</label>
                 <input
                   type="text"
-                  name="name"
                   value={menuFormData.name}
-                  onChange={handleMenuFormChange}
+                  onChange={(e) => setMenuFormData({...menuFormData, name: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  placeholder="Ex: Ndolé"
                   required
                 />
               </div>
@@ -2007,53 +2214,85 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2">Description</label>
                 <textarea
-                  name="description"
                   value={menuFormData.description}
-                  onChange={handleMenuFormChange}
+                  onChange={(e) => setMenuFormData({...menuFormData, description: e.target.value})}
                   rows={3}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97] resize-none"
-                  required
+                  placeholder="Description du plat..."
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Prix (F)</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={menuFormData.price}
-                  onChange={handleMenuFormChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
-                  required
-                  min="0"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Prix (FCFA) *</label>
+                  <input
+                    type="number"
+                    value={menuFormData.price}
+                    onChange={(e) => setMenuFormData({...menuFormData, price: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                    placeholder="2500"
+                    required
+                    min="0"
+                    step="100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Temps (min)</label>
+                  <input
+                    type="number"
+                    value={menuFormData.temps_preparation}
+                    onChange={(e) => setMenuFormData({...menuFormData, temps_preparation: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                    placeholder="45"
+                    min="0"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Catégorie</label>
+                <label className="block text-sm font-medium mb-2">Catégorie *</label>
                 <select
-                  name="category"
                   value={menuFormData.category}
-                  onChange={handleMenuFormChange}
+                  onChange={(e) => setMenuFormData({...menuFormData, category: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  required
                 >
-                  <option value="Plats">Plats</option>
-                  <option value="Boissons">Boissons</option>
-                  <option value="Desserts">Desserts</option>
+                  <option value="">Sélectionner une catégorie</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.nom}</option>
+                  ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">URL de l'image</label>
+                <input
+                  type="url"
+                  value={menuFormData.image}
+                  onChange={(e) => setMenuFormData({...menuFormData, image: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#cfbd97]"
+                  placeholder="https://..."
+                />
+                {menuFormData.image && (
+                  <img 
+                    src={menuFormData.image} 
+                    alt="Prévisualisation" 
+                    className="mt-2 h-32 object-cover rounded"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                )}
               </div>
 
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="available"
-                  name="available"
                   checked={menuFormData.available}
-                  onChange={handleMenuFormChange}
+                  onChange={(e) => setMenuFormData({...menuFormData, available: e.target.checked})}
                   className="w-4 h-4"
                 />
                 <label htmlFor="available" className="text-sm font-medium">
-                  Disponible
+                  Article disponible
                 </label>
               </div>
 

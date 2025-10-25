@@ -13,11 +13,13 @@ class MenuSeeder extends Seeder
      */
     public function run(): void
     {
-        // Récupérer la catégorie "Plats principaux"
+        // Récupérer les catégories
         $categoriePlats = CategorieMenu::where('nom_categorie', 'Plats principaux')->first();
+        $categorieBoissons = CategorieMenu::where('nom_categorie', 'Boissons')->first();
+        $categorieDesserts = CategorieMenu::where('nom_categorie', 'Desserts')->first();
 
-        if (!$categoriePlats) {
-            $this->command->error('La catégorie "Plats principaux" doit être créée avant. Exécutez CategorieMenuSeeder d\'abord.');
+        if (!$categoriePlats || !$categorieBoissons || !$categorieDesserts) {
+            $this->command->error('Les catégories doivent être créées avant. Exécutez CategorieMenuSeeder d\'abord.');
             return;
         }
 
@@ -67,6 +69,33 @@ class MenuSeeder extends Seeder
                 'url_image' => 'https://chickenexplore.ch/wp-content/uploads/2025/01/poulet_DG.jpg',
                 'id_categorie' => $categoriePlats->id_categorie,
             ],
+            [
+                'nom_article' => 'Jus d\'Orange',
+                'description' => 'Jus d\'orange frais pressé, naturel et vitaminé. Parfait pour accompagner votre repas ou pour une pause rafraîchissante.',
+                'prix' => 500,
+                'disponible' => 'oui',
+                'temps_preparation' => 5,
+                'url_image' => 'https://plus.unsplash.com/premium_photo-1675667390417-d9d23160f4a6?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8anVzJTIwZGUlMjBiaXNzYXB8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&q=60&w=600',
+                'id_categorie' => $categorieBoissons->id_categorie,
+            ],
+            [
+                'nom_article' => 'Café',
+                'description' => 'Café arabica fraîchement moulu et préparé. Un arôme intense pour bien démarrer la journée ou accompagner votre dessert.',
+                'prix' => 300,
+                'disponible' => 'oui',
+                'temps_preparation' => 5,
+                'url_image' => 'https://plus.unsplash.com/premium_photo-1673545518947-ddf3240090b1?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8Y2FmJUMzJUE5fGVufDB8fDB8fHww&auto=format&fit=crop&q=60&w=600',
+                'id_categorie' => $categorieBoissons->id_categorie,
+            ],
+            [
+                'nom_article' => 'Dessert Oreo',
+                'description' => 'Délicieux dessert crémeux aux biscuits Oreo. Une explosion de saveurs chocolatées et onctueuses pour terminer votre repas en beauté.',
+                'prix' => 800,
+                'disponible' => 'oui',
+                'temps_preparation' => 10,
+                'url_image' => 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8ZGVzc2VydHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&q=60&w=600',
+                'id_categorie' => $categorieDesserts->id_categorie,
+            ],
         ];
 
         foreach ($plats as $plat) {
@@ -76,11 +105,20 @@ class MenuSeeder extends Seeder
             );
         }
 
-        $this->command->info('Plats camerounais créés avec succès!');
+        $this->command->info('Articles du menu créés avec succès!');
+        $this->command->info('');
+        $this->command->info('=== PLATS PRINCIPAUX ===');
         $this->command->info('- Ndolé (1000 FCFA)');
         $this->command->info('- Poulet Rôti (1500 FCFA)');
         $this->command->info('- Eru (1000 FCFA)');
         $this->command->info('- Okok (1000 FCFA)');
         $this->command->info('- Poulet DG (2000 FCFA)');
+        $this->command->info('');
+        $this->command->info('=== BOISSONS ===');
+        $this->command->info('- Jus d\'Orange (500 FCFA)');
+        $this->command->info('- Café (300 FCFA)');
+        $this->command->info('');
+        $this->command->info('=== DESSERTS ===');
+        $this->command->info('- Dessert Oreo (800 FCFA)');
     }
 }

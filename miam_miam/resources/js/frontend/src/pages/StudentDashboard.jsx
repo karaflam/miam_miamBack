@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import { referralService } from "../services/api"
-import { mockMenuItems, mockOrders } from "../data/mockData"
+import { mockOrders } from "../data/mockData"
 import Blackjack from "../../components/student/Game/blackjack/Blackjack"
 import CulinaryQuiz from "../../components/student/Game/Quiz/CulinaryQuiz"
 import {
@@ -32,7 +32,11 @@ export default function StudentDashboard() {
   const { user, updateBalance, updateLoyaltyPoints } = useAuth()
   const [activeTab, setActiveTab] = useState("menu")
   const [cart, setCart] = useState([])
-  const [selectedCategory, setSelectedCategory] = useState("Tous")
+  const [menuItems, setMenuItems] = useState([])
+  const [categories, setCategories] = useState([])
+  const [isLoadingMenu, setIsLoadingMenu] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [searchMenuTerm, setSearchMenuTerm] = useState('')
   const [orders, setOrders] = useState(mockOrders.filter((o) => o.userId === user?.id))
   const [showRechargeModal, setShowRechargeModal] = useState(false)
   const [rechargeAmount, setRechargeAmount] = useState("")
@@ -44,6 +48,61 @@ export default function StudentDashboard() {
   const [loadingReferral, setLoadingReferral] = useState(false)
   const [referralError, setReferralError] = useState(null)
   const [activeGame, setActiveGame] = useState(null) // null, 'blackjack', 'quiz'
+
+  // Charger les données du menu
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/categories', {
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur catégories:', error);
+    }
+  };
+
+  const fetchMenuItems = async () => {
+    setIsLoadingMenu(true);
+    try {
+      let url = 'http://localhost:8000/api/menu';
+      const params = new URLSearchParams();
+      
+      if (selectedCategory !== 'all') {
+        params.append('categorie', selectedCategory);
+      }
+      if (searchMenuTerm) {
+        params.append('search', searchMenuTerm);
+      }
+      
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+      
+      const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setMenuItems(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur menu:', error);
+    } finally {
+      setIsLoadingMenu(false);
+    }
+  };
+
+  // Charger le menu au montage et quand les filtres changent
+  useEffect(() => {
+    if (activeTab === "menu") {
+      fetchCategories();
+      fetchMenuItems();
+    }
+  }, [activeTab, selectedCategory, searchMenuTerm]);
 
   // Charger les données de parrainage quand on affiche l'onglet
   useEffect(() => {
@@ -86,10 +145,7 @@ export default function StudentDashboard() {
     setLoadingReferral(false)
   }
 
-  const categories = ["Tous", "Plats", "Boissons", "Desserts"]
-
-  const filteredItems =
-    selectedCategory === "Tous" ? mockMenuItems : mockMenuItems.filter((item) => item.category === selectedCategory)
+  const filteredItems = menuItems
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -272,68 +328,107 @@ export default function StudentDashboard() {
           <div className="lg:col-span-2">
             {activeTab === "menu" && (
               <div>
-                {/* Category Filter */}
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                  {categories.map((category) => (
+                {/* Search and Category Filter */}
+                <div className="mb-6 space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Rechercher un plat..."
+                    value={searchMenuTerm}
+                    onChange={(e) => setSearchMenuTerm(e.target.value)}
+                    className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <div className="flex gap-2 overflow-x-auto pb-2">
                     <button
-                      key={category}
-                      onClick={() => setSelectedCategory(category)}
+                      onClick={() => setSelectedCategory('all')}
                       className={`px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-colors ${
-                        selectedCategory === category
+                        selectedCategory === 'all'
                           ? "bg-primary text-secondary"
                           : "bg-white text-foreground hover:bg-muted"
                       }`}
                     >
-                      {category}
+                      Tous
                     </button>
-                  ))}
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-colors ${
+                          selectedCategory === category.id
+                            ? "bg-primary text-secondary"
+                            : "bg-white text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {category.nom}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Menu Items Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
-                    >
-                      <div className="relative">
-                        <img
-                          src={item.image || "/placeholder.svg"}
-                          alt={item.name}
-                          className="w-full h-48 object-cover"
-                        />
-                        {item.isPromotion && (
-                          <div className="absolute top-4 right-4 bg-error text-white px-3 py-1 rounded-full text-sm font-semibold">
-                            Promo!
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-6">
-                        <h3 className="text-xl font-bold mb-2">{item.name}</h3>
-                        <p className="text-muted-foreground text-sm mb-4">{item.description}</p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            {item.isPromotion ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xl font-bold text-primary">{item.promotionPrice} F</span>
-                                <span className="text-sm text-muted-foreground line-through">{item.price} F</span>
-                              </div>
-                            ) : (
-                              <span className="text-2xl font-bold text-primary">{item.price} F</span>
+                {isLoadingMenu ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Chargement du menu...</p>
+                  </div>
+                ) : filteredItems.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 text-center">
+                    <ShoppingCart className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">Aucun article disponible</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
+                      >
+                        <div className="relative">
+                          <img
+                            src={item.image || "/placeholder.svg"}
+                            alt={item.nom}
+                            className="w-full h-48 object-cover"
+                          />
+                          {!item.disponible && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">Indisponible</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="text-xl font-bold">{item.nom}</h3>
+                            {item.categorie && (
+                              <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                {item.categorie.nom}
+                              </span>
                             )}
                           </div>
-                          <button
-                            onClick={() => addToCart(item)}
-                            className="bg-primary text-secondary px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors font-semibold flex items-center gap-2"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Ajouter
-                          </button>
+                          <p className="text-muted-foreground text-sm mb-4">{item.description}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-bold text-primary">{item.prix} FCFA</span>
+                              {item.temps_preparation && (
+                                <span className="text-xs text-muted-foreground">⏱️ {item.temps_preparation} min</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => addToCart({...item, price: item.prix, name: item.nom})}
+                              disabled={!item.disponible}
+                              className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors ${
+                                item.disponible
+                                  ? 'bg-primary text-secondary hover:bg-primary-dark'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
+                            >
+                              <Plus className="w-4 h-4" />
+                              Ajouter
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

@@ -1,12 +1,39 @@
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { mockMenuItems, mockTopCustomers } from "../data/mockData"
-import { Trophy, Tag, ArrowRight } from "lucide-react"
+import { mockTopCustomers } from "../data/mockData"
+import { Trophy, Tag, ArrowRight, Loader2 } from "lucide-react"
 import CustomCarousel from "../components/CustomCarousel"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function HomePage() {
-  const promotionItems = mockMenuItems.filter((item) => item.isPromotion)
-  const dailyMenu = mockMenuItems.filter((item) => item.category === "Plats").slice(0, 4)
+  const [menuItems, setMenuItems] = useState([])
+  const [isLoadingMenu, setIsLoadingMenu] = useState(false)
+
+  useEffect(() => {
+    fetchMenuItems();
+  }, []);
+
+  const fetchMenuItems = async () => {
+    setIsLoadingMenu(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/menu', {
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setMenuItems(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur menu:', error);
+    } finally {
+      setIsLoadingMenu(false);
+    }
+  };
+
+  // Filtrer uniquement les articles disponibles
+  const availableItems = menuItems.filter(item => item.disponible);
+  const dailyMenu = availableItems.slice(0, 4);
 
   return (
     <div className="min-h-screen bg-muted">
@@ -32,62 +59,62 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Promotions Section */}
-      {promotionItems.length > 0 && (
-        <section className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <FadeInOnScroll>
-              <div className="flex items-center gap-3 mb-8">
-                <Tag className="w-8 h-8 text-primary" />
-                <h2 className="text-3xl font-bold">Promotions du jour</h2>
-              </div>
-            </FadeInOnScroll>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {promotionItems.map((item, index) => (
-                <FadeInOnScroll key={item.id} delay={index * 150}>
+
+      {/* Daily Menu Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeInOnScroll>
+            <h2 className="text-3xl font-bold mb-8">Menu du jour</h2>
+          </FadeInOnScroll>
+          
+          {isLoadingMenu ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Chargement du menu...</p>
+            </div>
+          ) : dailyMenu.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-lg">Aucun plat disponible pour le moment</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {dailyMenu.map((item, index) => (
+                <FadeInOnScroll key={item.id} delay={index * 100}>
                   <div className="bg-muted rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                    <div className="relative">
-                      <img src={item.image || "/placeholder.svg"} alt={item.name} className="w-full h-48 object-cover" />
-                      <div className="absolute top-4 right-4 bg-error text-white px-3 py-1 rounded-full text-sm font-semibold">
-                        Promo !
+                    {item.image ? (
+                      <img 
+                        src={item.image} 
+                        alt={item.nom} 
+                        className="w-full h-48 object-cover"
+                        onError={(e) => e.target.src = '/placeholder.svg'}
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-400 text-4xl">🍽️</span>
                       </div>
-                    </div>
+                    )}
                     <div className="p-6">
-                      <h3 className="text-xl font-bold mb-2">{item.name}</h3>
-                      <p className="text-muted-foreground mb-4">{item.description}</p>
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-primary">{item.promotionPrice} F</span>
-                        <span className="text-lg text-muted-foreground line-through">{item.price} F</span>
+                      <h3 className="text-xl font-bold mb-2">{item.nom}</h3>
+                      <p className="text-muted-foreground mb-4 text-sm line-clamp-2">{item.description}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-2xl font-bold text-primary">{item.prix} FCFA</div>
+                        {item.temps_preparation && (
+                          <span className="text-xs text-muted-foreground">⏱️ {item.temps_preparation} min</span>
+                        )}
                       </div>
+                      {item.categorie && (
+                        <div className="mt-2">
+                          <span className="inline-block bg-primary/10 text-primary text-xs px-2 py-1 rounded">
+                            {item.categorie.nom}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </FadeInOnScroll>
               ))}
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* Daily Menu Section */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <FadeInOnScroll>
-            <h2 className="text-3xl font-bold mb-8">Menu du jour</h2>
-          </FadeInOnScroll>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {dailyMenu.map((item, index) => (
-              <FadeInOnScroll key={item.id} delay={index * 100}>
-                <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                  <img src={item.image || "/placeholder.svg"} alt={item.name} className="w-full h-48 object-cover" />
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2">{item.name}</h3>
-                    <p className="text-muted-foreground mb-4 text-sm">{item.description}</p>
-                    <div className="text-2xl font-bold text-primary">{item.price} F</div>
-                  </div>
-                </div>
-              </FadeInOnScroll>
-            ))}
-          </div>
+          )}
         </div>
       </section>
 
