@@ -40,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Routes publiques
 Route::get('/menu', [MenuController::class, 'index']);
+Route::get('/menu/{id}', [MenuController::class, 'show']);
+Route::get('/categories', [App\Http\Controllers\Api\CategorieMenuController::class, 'index']);
+Route::get('/categories/{id}', [App\Http\Controllers\Api\CategorieMenuController::class, 'show']);
 
 // Webhook CinetPay
 Route::post('/cinetpay/notify', [PaiementController::class, 'notify']);
@@ -69,11 +72,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/commandes/mes-commandes', [CommandeController::class, 'index']);
     Route::get('/commandes/{id}', [CommandeController::class, 'show']);
     
-    // Réclamations
+    // Réclamations (utilisateurs)
     Route::post('/reclamations', [ReclamationController::class, 'store']);
     Route::get('/reclamations/mes-reclamations', [ReclamationController::class, 'index']);
     Route::get('/reclamations/{id}', [ReclamationController::class, 'show']);
-    Route::put('/reclamations/{id}/annuler', [ReclamationController::class, 'cancel']);
+    
+    // Réclamations (staff uniquement)
+    Route::middleware('role:admin,employe')->prefix('staff/reclamations')->group(function () {
+        Route::get('/', [ReclamationController::class, 'getAllReclamations']);
+        Route::get('/statistics', [ReclamationController::class, 'statistics']);
+        Route::post('/{id}/assign', [ReclamationController::class, 'assign']);
+        Route::put('/{id}/status', [ReclamationController::class, 'updateStatus']);
+    });
     
     // Paiements
     Route::post('/paiement/initier', [PaiementController::class, 'initier']);
@@ -84,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/menu', [MenuController::class, 'store']);
         Route::put('/menu/{id}', [MenuController::class, 'update']);
         Route::delete('/menu/{id}', [MenuController::class, 'destroy']);
+        Route::post('/menu/{id}/toggle-disponibilite', [MenuController::class, 'toggleDisponibilite']);
     });
 
     // Fidélité

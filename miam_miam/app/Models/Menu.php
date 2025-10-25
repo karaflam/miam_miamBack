@@ -32,6 +32,14 @@ class Menu extends Model
     public $timestamps = false;
 
     /**
+     * Scopes
+     */
+    public function scopeDisponible($query)
+    {
+        return $query->where('disponible', 'oui');
+    }
+
+    /**
      * Relations
      */
     public function categorie(): BelongsTo

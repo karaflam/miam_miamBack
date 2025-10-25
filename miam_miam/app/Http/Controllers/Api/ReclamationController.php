@@ -11,20 +11,14 @@ use App\Models\Reclamation;
 class ReclamationController extends Controller
 {
     /**
-     * Créer une nouvelle réclamation
+     * Créer une nouvelle réclamation (utilisateur)
      */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'id_commande' => 'nullable|exists:commandes,id_commande',
-            'type_reclamation' => 'required|string|max:100',
+            'sujet' => 'required|string|max:150',
             'description' => 'required|string',
-            'priorite' => 'required|in:basse,moyenne,haute',
-        ], [
-            'type_reclamation.required' => 'Le type de réclamation est obligatoire',
-            'description.required' => 'La description est obligatoire',
-            'priorite.required' => 'La priorité est obligatoire',
-            'priorite.in' => 'La priorité doit être : basse, moyenne ou haute',
         ]);
 
         if ($validator->fails()) {
@@ -39,10 +33,9 @@ class ReclamationController extends Controller
             $reclamation = Reclamation::create([
                 'id_utilisateur' => Auth::id(),
                 'id_commande' => $request->id_commande,
-                'type_reclamation' => $request->type_reclamation,
+                'sujet' => $request->sujet,
                 'description' => $request->description,
-                'priorite' => $request->priorite,
-                'statut' => 'en_attente',
+                'statut' => 'ouvert',
             ]);
 
             return response()->json([
@@ -66,9 +59,42 @@ class ReclamationController extends Controller
     {
         try {
             $reclamations = Reclamation::where('id_utilisateur', Auth::id())
-                ->with(['commande', 'utilisateur'])
-                ->orderBy('date_reclamation', 'desc')
+                ->with(['commande', 'utilisateur', 'employeAssigne'])
+                ->orderBy('date_ouverture', 'desc')
                 ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $reclamations
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des réclamations',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Récupérer toutes les réclamations (staff uniquement)
+     */
+    public function getAllReclamations(Request $request)
+    {
+        try {
+            $query = Reclamation::with(['commande', 'utilisateur', 'employeAssigne']);
+
+            // Filtrer par statut
+            if ($request->has('statut') && $request->statut !== 'all') {
+                $query->where('statut', $request->statut);
+            }
+
+            // Filtrer par employé assigné
+            if ($request->has('id_employe_assigne')) {
+                $query->where('id_employe_assigne', $request->id_employe_assigne);
+            }
+
+            $reclamations = $query->orderBy('date_ouverture', 'desc')->get();
 
             return response()->json([
                 'success' => true,
@@ -115,43 +141,113 @@ class ReclamationController extends Controller
     }
 
     /**
-     * Annuler une réclamation
+     * Assigner une réclamation à un employé (staff uniquement)
      */
-    public function cancel($id)
+    public function assign(Request $request, $id)
     {
+        $validator = Validator::make($request->all(), [
+            'id_employe_assigne' => 'required|exists:employes,id_employe',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
         try {
-            $reclamation = Reclamation::where('id_reclamation', $id)
-                ->where('id_utilisateur', Auth::id())
-                ->first();
-
-            if (!$reclamation) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Réclamation non trouvée'
-                ], 404);
-            }
-
-            if ($reclamation->statut === 'resolue' || $reclamation->statut === 'annulee') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cette réclamation ne peut plus être annulée'
-                ], 400);
-            }
+            $reclamation = Reclamation::findOrFail($id);
 
             $reclamation->update([
-                'statut' => 'annulee',
-                'date_resolution' => now()
+                'id_employe_assigne' => $request->id_employe_assigne,
+                'statut' => 'en_cours'
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Réclamation annulée avec succès',
-                'data' => $reclamation
+                'message' => 'Réclamation assignée avec succès',
+                'data' => $reclamation->load('employeAssigne')
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de l\'annulation de la réclamation',
+                'message' => 'Erreur lors de l\'assignation',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mettre à jour le statut d'une réclamation (staff uniquement)
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'statut' => 'required|in:ouvert,en_cours,resolu,rejete',
+            'commentaire_resolution' => 'required_if:statut,resolu,rejete|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $reclamation = Reclamation::findOrFail($id);
+
+            $updateData = [
+                'statut' => $request->statut,
+            ];
+
+            if ($request->commentaire_resolution) {
+                $updateData['commentaire_resolution'] = $request->commentaire_resolution;
+            }
+
+            if (in_array($request->statut, ['resolu', 'rejete'])) {
+                $updateData['date_cloture'] = now();
+            }
+
+            $reclamation->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Statut mis à jour avec succès',
+                'data' => $reclamation->load(['utilisateur', 'commande', 'employeAssigne'])
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du statut',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Statistiques des réclamations (staff uniquement)
+     */
+    public function statistics()
+    {
+        try {
+            $stats = [
+                'total' => Reclamation::count(),
+                'ouvert' => Reclamation::where('statut', 'ouvert')->count(),
+                'en_cours' => Reclamation::where('statut', 'en_cours')->count(),
+                'resolu' => Reclamation::where('statut', 'resolu')->count(),
+                'rejete' => Reclamation::where('statut', 'rejete')->count(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des statistiques',
                 'error' => $e->getMessage()
             ], 500);
         }
