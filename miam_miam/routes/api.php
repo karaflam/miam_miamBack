@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\StaffAuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\MenuController;
@@ -12,17 +13,30 @@ use App\Http\Controllers\Api\StatistiqueController;
 use App\Http\Controllers\Api\UsagePromoController;
 use App\Http\Controllers\Api\FideliteController;
 use App\Http\Controllers\Api\ParrainageController;
+use App\Http\Controllers\Api\UserManagementController;
 
 // Route test
 Route::get('/test', function () {
     return response()->json(['message' => 'API fonctionne!']);
 });
 
-// Routes d'authentification publiques
+// Routes d'authentification publiques (utilisateurs/étudiants)
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
+// Routes d'authentification staff (employés)
+Route::post('/staff/login', [StaffAuthController::class, 'login']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/staff/logout', [StaffAuthController::class, 'logout']);
+    Route::get('/staff/user', [StaffAuthController::class, 'user']);
+    
+    // Profil staff
+    Route::get('/staff/profile', [App\Http\Controllers\Api\StaffProfileController::class, 'show']);
+    Route::put('/staff/profile', [App\Http\Controllers\Api\StaffProfileController::class, 'update']);
+    Route::put('/staff/profile/password', [App\Http\Controllers\Api\StaffProfileController::class, 'updatePassword']);
+});
 
 // Routes publiques
 Route::get('/menu', [MenuController::class, 'index']);
@@ -91,5 +105,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/statistiques/hebdomadaires', [StatistiqueController::class, 'hebdomadaires']);
     Route::get('/statistiques/top-clients', [StatistiqueController::class, 'topClients']);
     // Vérifiez que la route pointe vers le bon contrôleur
-Route::get('/usage-promo', [App\Http\Controllers\Api\UsagePromoController::class, 'index']);
+    Route::get('/usage-promo', [App\Http\Controllers\Api\UsagePromoController::class, 'index']);
+    
+    // Gestion des utilisateurs (Admin/Staff uniquement)
+    Route::middleware('role:admin,employe')->prefix('admin/users')->group(function () {
+        Route::get('/', [UserManagementController::class, 'index']);
+        Route::get('/statistics', [UserManagementController::class, 'statistics']);
+        Route::get('/{id}', [UserManagementController::class, 'show']);
+        Route::post('/', [UserManagementController::class, 'store']);
+        Route::put('/{id}', [UserManagementController::class, 'update']);
+        Route::delete('/{id}', [UserManagementController::class, 'destroy']);
+        Route::post('/{id}/reset-password', [UserManagementController::class, 'resetPassword']);
+        Route::post('/{id}/activate', [UserManagementController::class, 'activate']);
+        Route::post('/{id}/suspend', [UserManagementController::class, 'suspend']);
+        Route::post('/{id}/adjust-points', [UserManagementController::class, 'adjustPoints']);
+    });
 });

@@ -27,7 +27,8 @@ export default function StudentLoginPage() {
           setLoading(false)
           return
         }
-        navigate("/student")
+        // Forcer un rechargement complet pour que AuthContext se réinitialise
+        window.location.href = "/student"
       } else {
         setError(result.error)
       }

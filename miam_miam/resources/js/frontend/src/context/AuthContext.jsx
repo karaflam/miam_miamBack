@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect } from "react"
-import { authService } from "../services/api"
+import { authService, staffAuthService } from "../services/api"
 
 const AuthContext = createContext(null)
 
@@ -15,17 +15,12 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem("auth_token")
     
     if (savedUser && token) {
-      setUser(JSON.parse(savedUser))
-      // Optionnel: vérifier que le token est toujours valide
-      authService.getCurrentUser().then(result => {
-        if (result.success) {
-          setUser(result.user)
-        } else {
-          setUser(null)
-          localStorage.removeItem("currentUser")
-          localStorage.removeItem("auth_token")
-        }
-      })
+      const parsedUser = JSON.parse(savedUser)
+      setUser(parsedUser)
+      
+      // Note: On ne vérifie pas le token ici pour éviter les erreurs 500
+      // Le token sera vérifié lors des requêtes API protégées
+      // Si le token est invalide, l'intercepteur axios nettoiera la session
     }
     setLoading(false)
   }, [])
@@ -53,7 +48,11 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    await authService.logout()
+    // Déterminer quel service utiliser selon le rôle
+    const isStaff = user && ['admin', 'manager', 'employee'].includes(user.role)
+    const service = isStaff ? staffAuthService : authService
+    
+    await service.logout()
     setUser(null)
   }
 

@@ -14,7 +14,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    // Rediriger vers la page de connexion appropriée selon le rôle demandé
+    const isStaffRoute = allowedRoles?.some(role => ['employee', 'manager', 'admin'].includes(role))
+    return <Navigate to={isStaffRoute ? "/staff-login" : "/student-login"} replace />
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {

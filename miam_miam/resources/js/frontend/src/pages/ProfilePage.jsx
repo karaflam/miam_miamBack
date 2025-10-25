@@ -8,6 +8,7 @@ import { User, Mail, Phone, MapPin, Lock, Save, AlertCircle, CheckCircle, Loader
 export default function ProfilePage() {
   const { user, setUser } = useAuth()
   const [activeSection, setActiveSection] = useState("info")
+  const isStaff = user && ['admin', 'manager', 'employee'].includes(user.role)
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
@@ -275,23 +276,25 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div>
-                  <label htmlFor="localisation" className="block text-sm font-medium mb-2">
-                    Localisation
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <input
-                      id="localisation"
-                      name="localisation"
-                      type="text"
-                      value={formData.localisation}
-                      onChange={handleInfoChange}
-                      className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Dakar, Sénégal"
-                    />
+                {!isStaff && (
+                  <div>
+                    <label htmlFor="localisation" className="block text-sm font-medium mb-2">
+                      Localisation
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        id="localisation"
+                        name="localisation"
+                        type="text"
+                        value={formData.localisation}
+                        onChange={handleInfoChange}
+                        className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Dakar, Sénégal"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <button
                   type="submit"

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { useAuth } from "../context/AuthContext"
+import { staffAuthService } from "../services/api"
 import { Mail, Lock, AlertCircle, Shield } from "lucide-react"
 
 export default function StaffLoginPage() {
@@ -10,7 +10,6 @@ export default function StaffLoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -19,7 +18,7 @@ export default function StaffLoginPage() {
     setLoading(true)
 
     try {
-      const result = await login(email, password)
+      const result = await staffAuthService.login(email, password)
 
       if (result.success) {
         // Vérifier que c'est bien un membre du staff
@@ -34,7 +33,9 @@ export default function StaffLoginPage() {
           manager: "/manager",
           admin: "/admin",
         }
-        navigate(dashboardPaths[result.user.role])
+        
+        // Forcer un rechargement complet de la page pour que AuthContext se réinitialise
+        window.location.href = dashboardPaths[result.user.role]
       } else {
         setError(result.error)
       }

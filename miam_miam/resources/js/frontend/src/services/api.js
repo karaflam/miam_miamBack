@@ -29,10 +29,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expiré ou invalide
+      // Token expiré ou invalide - nettoyer le localStorage seulement
+      // Ne pas rediriger automatiquement car staff et student ont des pages différentes
       localStorage.removeItem('auth_token')
       localStorage.removeItem('currentUser')
-      window.location.href = '/student-login'
     }
     return Promise.reject(error)
   }
@@ -138,11 +138,69 @@ export const authService = {
   },
 }
 
-// Services de profil
+// Services d'authentification staff (employés)
+export const staffAuthService = {
+  async login(email, password) {
+    try {
+      // D'abord, obtenir le cookie CSRF
+      await axios.get('/sanctum/csrf-cookie')
+      
+      const response = await api.post('/staff/login', { email, password })
+      
+      if (response.data.success) {
+        // Stocker le token et l'utilisateur
+        localStorage.setItem('auth_token', response.data.token)
+        localStorage.setItem('currentUser', JSON.stringify(response.data.user))
+        return { success: true, user: response.data.user }
+      }
+      
+      return { success: false, error: 'Erreur de connexion' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Email ou mot de passe incorrect'
+      return { success: false, error: message }
+    }
+  },
+
+  async logout() {
+    try {
+      await api.post('/staff/logout')
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('currentUser')
+      return { success: true }
+    } catch (error) {
+      // Même en cas d'erreur, on nettoie le localStorage
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('currentUser')
+      return { success: true }
+    }
+  },
+
+  async getCurrentUser() {
+    try {
+      const response = await api.get('/staff/user')
+      if (response.data.success) {
+        localStorage.setItem('currentUser', JSON.stringify(response.data.user))
+        return { success: true, user: response.data.user }
+      }
+      return { success: false }
+    } catch (error) {
+      return { success: false }
+    }
+  },
+}
+
+// Helper pour déterminer si l'utilisateur est staff
+const isStaffUser = () => {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+  return ['admin', 'manager', 'employee'].includes(currentUser.role)
+}
+
+// Services de profil (détecte automatiquement staff vs student)
 export const profileService = {
   async getProfile() {
     try {
-      const response = await api.get('/profile')
+      const endpoint = isStaffUser() ? '/staff/profile' : '/profile'
+      const response = await api.get(endpoint)
       if (response.data.success) {
         return { success: true, data: response.data.data }
       }
@@ -155,7 +213,8 @@ export const profileService = {
 
   async updateProfile(profileData) {
     try {
-      const response = await api.put('/profile', profileData)
+      const endpoint = isStaffUser() ? '/staff/profile' : '/profile'
+      const response = await api.put(endpoint, profileData)
       if (response.data.success) {
         // Mettre à jour l'utilisateur dans le localStorage
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
@@ -177,7 +236,8 @@ export const profileService = {
 
   async updatePassword(passwordData) {
     try {
-      const response = await api.put('/profile/password', passwordData)
+      const endpoint = isStaffUser() ? '/staff/profile/password' : '/profile/password'
+      const response = await api.put(endpoint, passwordData)
       if (response.data.success) {
         return { success: true, message: response.data.message }
       }

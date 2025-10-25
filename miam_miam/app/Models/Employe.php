@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Sanctum\HasApiTokens;
 
-class Employe extends Model
+class Employe extends Authenticatable
 {
+    use HasApiTokens;
     protected $table = 'employes';
     protected $primaryKey = 'id_employe';
     
@@ -60,5 +62,15 @@ class Employe extends Model
     public function activites(): HasMany
     {
         return $this->hasMany(Activite::class, 'id_employe');
+    }
+
+    /**
+     * Get the password for the user.
+     *
+     * @return string
+     */
+    public function getAuthPassword()
+    {
+        return $this->mot_de_passe;
     }
 }

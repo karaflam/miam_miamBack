@@ -69,6 +69,11 @@ return [
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
+        'employes' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Employe::class,
+        ],
+
         // 'users' => [
         //     'driver' => 'database',
         //     'table' => 'users',

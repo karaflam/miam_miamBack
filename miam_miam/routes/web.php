@@ -1,9 +1,6 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 use App\Http\Controllers\Api\UsagePromoController;
 use App\Http\Controllers\Api\EvenementController;
 use App\Http\Controllers\Api\StatistiqueController;
@@ -11,28 +8,6 @@ use App\Http\Controllers\Api\StatistiqueController;
 Route::get('/', function () {
     return view('frontend');
 });
-
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
-require __DIR__.'/auth.php';
-
-Route::get('/payment/success', function (Illuminate\Http\Request $request) {
-    return Inertia::render('Payment/Success', [
-        'transaction_id' => $request->query('transaction_id')
-    ]);
-})->name('payment.success');
-
-Route::get('/payment/cancel', function () {
-    return Inertia::render('Payment/Cancel');
-})->name('payment.cancel');
 Route::middleware(['auth:sanctum'])->group(function () {
     // Routes CRUD de base
     Route::get('/usage-promos', [UsagePromoController::class, 'index']);
