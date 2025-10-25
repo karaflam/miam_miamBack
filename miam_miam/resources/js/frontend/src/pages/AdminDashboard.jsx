@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Chart } from 'chart.js/auto'
 import { mockUsers as initialUsers, mockPromotions as initialPromotions, mockMenuItems as initialMenuItems } from "../data/mockData"
-import { Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight , Eye, EyeOff, Package, Calendar, TrendingUp} from "lucide-react"
+import { Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight , Eye, EyeOff, Package, Calendar, TrendingUp, Ban, CheckCircle} from "lucide-react"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function AdminDashboard() {
@@ -203,7 +203,9 @@ export default function AdminDashboard() {
   const handleUpdateUser = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api/admin/users/${editingUser.id}`, {
+      // Utiliser original_id s'il existe, sinon utiliser id
+      const userId = editingUser.original_id || editingUser.id;
+      const response = await fetch(`http://localhost:8000/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -234,21 +236,23 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleDeleteUser = async (userId, userType) => {
-    if (!confirm("Êtes-vous sûr de vouloir désactiver cet utilisateur ?")) {
+  const handleDeleteUser = async (user) => {
+    if (!confirm("⚠️ ATTENTION : Êtes-vous sûr de vouloir SUPPRIMER DÉFINITIVEMENT cet utilisateur ?\n\nCette action est IRRÉVERSIBLE et supprimera toutes les données associées.")) {
       return;
     }
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api/admin/users/${userId}?type=${userType}`, {
+      // Utiliser original_id s'il existe, sinon utiliser id
+      const userId = user.original_id || user.id;
+      const response = await fetch(`http://localhost:8000/api/admin/users/${userId}?type=${user.type}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ type: userType })
+        body: JSON.stringify({ type: user.type })
       });
 
       if (!response.ok) {
@@ -258,11 +262,46 @@ export default function AdminDashboard() {
       }
 
       const data = await response.json();
-      alert(data.message || 'Utilisateur désactivé avec succès!');
+      alert(data.message || 'Utilisateur supprimé définitivement avec succès!');
       fetchUsers(); // Recharger la liste
     } catch (error) {
       console.error('Erreur:', error);
       alert('Erreur lors de la suppression de l\'utilisateur');
+    }
+  }
+
+  const handleToggleStatus = async (user) => {
+    const action = user.statut === 'actif' ? 'suspendre' : 'activer';
+    if (!confirm(`Êtes-vous sûr de vouloir ${action} cet utilisateur ?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      // Utiliser original_id s'il existe, sinon utiliser id
+      const userId = user.original_id || user.id;
+      const response = await fetch(`http://localhost:8000/api/admin/users/${userId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type: user.type })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de modifier le statut'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Statut modifié avec succès!');
+      fetchUsers(); // Recharger la liste
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la modification du statut');
     }
   }
 
@@ -1125,15 +1164,30 @@ export default function AdminDashboard() {
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => openEditUserModal(user)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Modifier"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteUser(user.id, user.type)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        title="Supprimer"
+                        onClick={() => handleToggleStatus(user)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          user.statut === 'actif' 
+                            ? 'text-orange-600 hover:bg-orange-50' 
+                            : 'text-green-600 hover:bg-green-50'
+                        }`}
+                        title={user.statut === 'actif' ? 'Suspendre' : 'Activer'}
+                      >
+                        {user.statut === 'actif' ? (
+                          <Ban className="w-4 h-4" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Supprimer définitivement"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

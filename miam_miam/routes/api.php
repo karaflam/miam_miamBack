@@ -20,6 +20,9 @@ Route::get('/test', function () {
     return response()->json(['message' => 'API fonctionne!']);
 });
 
+// Route de diagnostic (protégée par auth)
+Route::middleware('auth:sanctum')->get('/diagnostic/auth', [App\Http\Controllers\Api\DiagnosticController::class, 'authDiagnostic']);
+
 // Routes d'authentification publiques (utilisateurs/étudiants)
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -115,6 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [UserManagementController::class, 'store']);
         Route::put('/{id}', [UserManagementController::class, 'update']);
         Route::delete('/{id}', [UserManagementController::class, 'destroy']);
+        Route::post('/{id}/toggle-status', [UserManagementController::class, 'toggleStatus']);
         Route::post('/{id}/reset-password', [UserManagementController::class, 'resetPassword']);
         Route::post('/{id}/activate', [UserManagementController::class, 'activate']);
         Route::post('/{id}/suspend', [UserManagementController::class, 'suspend']);

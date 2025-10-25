@@ -32,6 +32,15 @@ class AuthController extends Controller
 
         $user = Auth::user();
         
+        // Vérifier si le compte est actif
+        if ($user->statut !== 'actif') {
+            Auth::logout();
+            return response()->json([
+                'success' => false,
+                'message' => 'Votre compte a été suspendu. Veuillez contacter l\'administration.'
+            ], 403);
+        }
+        
         // Créer un token pour l'authentification
         $token = $user->createToken('auth-token')->plainTextToken;
 

@@ -21,7 +21,8 @@ class UserManagementController extends Controller
         // Récupérer les utilisateurs (étudiants)
         $users = User::query()
             ->select([
-                'id_utilisateur as id',
+                DB::raw("CONCAT('user_', id_utilisateur) as id"),
+                'id_utilisateur as original_id',
                 'nom',
                 'prenom',
                 'email',
@@ -39,7 +40,8 @@ class UserManagementController extends Controller
         // Récupérer les employés
         $employes = \App\Models\Employe::query()
             ->select([
-                'id_employe as id',
+                DB::raw("CONCAT('employe_', id_employe) as id"),
+                DB::raw("id_employe as original_id"),
                 'nom',
                 'prenom',
                 'email',
@@ -256,11 +258,31 @@ class UserManagementController extends Controller
     {
         $type = $request->input('type', 'user');
         
+        // Extraire l'ID réel à partir de l'ID préfixé
+        $realId = $this->extractRealId($id, $type);
+        
         if ($type === 'employe') {
-            return $this->updateEmploye($request, $id);
+            return $this->updateEmploye($request, $realId);
         }
         
-        return $this->updateUser($request, $id);
+        return $this->updateUser($request, $realId);
+    }
+    
+    /**
+     * Extrait l'ID réel à partir de l'ID préfixé
+     */
+    private function extractRealId($id, $type)
+    {
+        // Si l'ID contient un préfixe, l'extraire
+        if (strpos($id, 'user_') === 0) {
+            return (int) str_replace('user_', '', $id);
+        }
+        if (strpos($id, 'employe_') === 0) {
+            return (int) str_replace('employe_', '', $id);
+        }
+        
+        // Sinon, retourner l'ID tel quel
+        return (int) $id;
     }
     
     /**
@@ -383,14 +405,17 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Supprime (désactive) un utilisateur (étudiant ou employé)
+     * Supprime définitivement un utilisateur (étudiant ou employé)
      */
     public function destroy(Request $request, $id)
     {
         $type = $request->input('type', 'user');
         
+        // Extraire l'ID réel à partir de l'ID préfixé
+        $realId = $this->extractRealId($id, $type);
+        
         if ($type === 'employe') {
-            $employe = \App\Models\Employe::find($id);
+            $employe = \App\Models\Employe::find($realId);
             
             if (!$employe) {
                 return response()->json([
@@ -399,16 +424,16 @@ class UserManagementController extends Controller
                 ], 404);
             }
             
-            // Désactiver l'employé
-            $employe->update(['actif' => 'non']);
+            // Supprimer définitivement l'employé
+            $employe->delete();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Employé désactivé avec succès'
+                'message' => 'Employé supprimé définitivement avec succès'
             ]);
         }
         
-        $user = User::find($id);
+        $user = User::find($realId);
 
         if (!$user) {
             return response()->json([
@@ -417,12 +442,63 @@ class UserManagementController extends Controller
             ], 404);
         }
 
-        // Plutôt que de supprimer, on désactive l'utilisateur
-        $user->update(['statut' => 'inactif']);
+        // Supprimer définitivement l'utilisateur
+        $user->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Utilisateur désactivé avec succès'
+            'message' => 'Utilisateur supprimé définitivement avec succès'
+        ]);
+    }
+    
+    /**
+     * Active ou désactive un utilisateur (suspend/réactive)
+     */
+    public function toggleStatus(Request $request, $id)
+    {
+        $type = $request->input('type', 'user');
+        
+        // Extraire l'ID réel à partir de l'ID préfixé
+        $realId = $this->extractRealId($id, $type);
+        
+        if ($type === 'employe') {
+            $employe = \App\Models\Employe::find($realId);
+            
+            if (!$employe) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Employé non trouvé'
+                ], 404);
+            }
+            
+            // Basculer le statut actif/inactif
+            $newStatus = $employe->actif === 'oui' ? 'non' : 'oui';
+            $employe->update(['actif' => $newStatus]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => $newStatus === 'oui' ? 'Employé activé avec succès' : 'Employé suspendu avec succès',
+                'data' => $employe->fresh()
+            ]);
+        }
+        
+        $user = User::find($realId);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Utilisateur non trouvé'
+            ], 404);
+        }
+
+        // Basculer le statut actif/inactif
+        $newStatus = $user->statut === 'actif' ? 'inactif' : 'actif';
+        $user->update(['statut' => $newStatus]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $newStatus === 'actif' ? 'Utilisateur activé avec succès' : 'Utilisateur suspendu avec succès',
+            'data' => $user->fresh()
         ]);
     }
 

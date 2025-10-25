@@ -24,9 +24,10 @@ class CheckRole
         }
 
         $user = $request->user();
+        $userClass = get_class($user);
 
         // Vérifier si c'est un employé (modèle Employe)
-        if (get_class($user) === 'App\Models\Employe') {
+        if ($userClass === 'App\Models\Employe') {
             // Charger la relation role si elle n'est pas déjà chargée
             if (!$user->relationLoaded('role')) {
                 $user->load('role');
@@ -40,12 +41,38 @@ class CheckRole
                 foreach ($roles as $role) {
                     $roleAutorise = strtolower($role);
                     
-                    // Correspondances possibles
-                    if ($nomRole === $roleAutorise || 
-                        ($roleAutorise === 'admin' && $nomRole === 'administrateur') ||
-                        ($roleAutorise === 'employe' && in_array($nomRole, ['employe', 'employé', 'staff']))) {
+                    // Correspondances possibles pour chaque rôle
+                    $roleMatches = [
+                        'admin' => ['admin', 'administrateur', 'administrator'],
+                        'employe' => ['employe', 'employé', 'employee', 'staff', 'gerant', 'gestionnaire', 'manager'],
+                        'manager' => ['gerant', 'gestionnaire', 'manager'],
+                        'student' => ['student', 'etudiant', 'utilisateur'],
+                    ];
+                    
+                    // Vérifier si le rôle correspond directement
+                    if ($nomRole === $roleAutorise) {
                         return $next($request);
                     }
+                    
+                    // Vérifier les correspondances
+                    if (isset($roleMatches[$roleAutorise]) && in_array($nomRole, $roleMatches[$roleAutorise])) {
+                        return $next($request);
+                    }
+                }
+            }
+        } 
+        // Vérifier si c'est un utilisateur normal (modèle User)
+        elseif ($userClass === 'App\Models\User') {
+            // Les utilisateurs normaux ne peuvent accéder qu'aux routes autorisées pour 'student'
+            $userRole = strtolower($user->role ?? 'student');
+            
+            foreach ($roles as $role) {
+                $roleAutorise = strtolower($role);
+                
+                // Vérifier si le rôle de l'utilisateur correspond
+                if ($userRole === $roleAutorise || 
+                    ($roleAutorise === 'student' && in_array($userRole, ['student', 'etudiant', 'utilisateur']))) {
+                    return $next($request);
                 }
             }
         }
