@@ -8,11 +8,13 @@ import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard")
-  const [users, setUsers] = useState(initialUsers)
+  const [users, setUsers] = useState([])
   const [promotions, setPromotions] = useState(initialPromotions)
   const [menuItems, setMenuItems] = useState(initialMenuItems)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [showUserModal, setShowUserModal] = useState(false)
   const [showPromoModal, setShowPromoModal] = useState(false)
   const [showMenuItemModal, setShowMenuItemModal] = useState(false)
@@ -31,12 +33,15 @@ export default function AdminDashboard() {
   const chartInstances = useRef({})
 
   const [userFormData, setUserFormData] = useState({
-    name: "",
+    nom: "",
+    prenom: "",
     email: "",
-    phone: "",
+    telephone: "",
+    mot_de_passe: "",
     role: "student",
-    balance: 0,
-    loyaltyPoints: 0,
+    type: "user",
+    localisation: "",
+    id_role: 2,
   })
 
   const [promoFormData, setPromoFormData] = useState({
@@ -131,13 +136,7 @@ export default function AdminDashboard() {
     dailyLimit: 3,
   })
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRole = roleFilter === "all" || user.role === roleFilter
-    return matchesSearch && matchesRole
-  })
+  
 
   const handleUserFormChange = (e) => {
     const { name, value } = e.target
@@ -171,27 +170,99 @@ export default function AdminDashboard() {
     }))
   }
 
-  const handleAddUser = () => {
-    const newUser = {
-      id: Date.now().toString(),
-      ...userFormData,
-      password: "password",
-      createdAt: new Date().toISOString(),
+  const handleCreateUser = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userFormData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de créer l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur créé avec succès!');
+      setShowUserModal(false);
+      resetUserForm();
+      fetchUsers(); // Recharger la liste
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la création de l\'utilisateur');
     }
-    setUsers([...users, newUser])
-    setShowUserModal(false)
-    resetUserForm()
   }
 
-  const handleEditUser = () => {
-    setUsers(users.map((user) => (user.id === editingUser.id ? { ...user, ...userFormData } : user)))
-    setEditingUser(null)
-    resetUserForm()
+  const handleUpdateUser = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/admin/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...userFormData,
+          type: editingUser.type
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de modifier l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur modifié avec succès!');
+      setShowUserModal(false);
+      setEditingUser(null);
+      resetUserForm();
+      fetchUsers(); // Recharger la liste
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la modification de l\'utilisateur');
+    }
   }
 
-  const handleDeleteUser = (userId) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
-      setUsers(users.filter((user) => user.id !== userId))
+  const handleDeleteUser = async (userId, userType) => {
+    if (!confirm("Êtes-vous sûr de vouloir désactiver cet utilisateur ?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/admin/users/${userId}?type=${userType}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type: userType })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de supprimer l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur désactivé avec succès!');
+      fetchUsers(); // Recharger la liste
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la suppression de l\'utilisateur');
     }
   }
 
@@ -296,12 +367,15 @@ export default function AdminDashboard() {
 
   const resetUserForm = () => {
     setUserFormData({
-      name: "",
+      nom: "",
+      prenom: "",
       email: "",
-      phone: "",
+      telephone: "",
+      mot_de_passe: "",
       role: "student",
-      balance: 0,
-      loyaltyPoints: 0,
+      type: "user",
+      localisation: "",
+      id_role: 2,
     })
   }
 
@@ -478,13 +552,16 @@ export default function AdminDashboard() {
   const openEditUserModal = (user) => {
     setEditingUser(user)
     setUserFormData({
-      name: user.name,
+      nom: user.nom,
+      prenom: user.prenom,
       email: user.email,
-      phone: user.phone || "",
+      telephone: user.telephone || "",
       role: user.role,
-      balance: user.balance || 0,
-      loyaltyPoints: user.loyaltyPoints || 0,
+      type: user.type,
+      localisation: user.localisation || "",
+      id_role: user.role === 'admin' ? 4 : user.role === 'manager' ? 3 : user.role === 'employee' ? 2 : 1,
     })
+    setShowUserModal(true)
   }
 
   const openEditPromoModal = (promo) => {
@@ -528,6 +605,116 @@ export default function AdminDashboard() {
         return role
     }
   }
+
+  const fetchUsers = async () => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    // Utiliser 'auth_token' au lieu de 'token' (cohérent avec api.js)
+    const token = localStorage.getItem('auth_token');
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    
+    console.log('🔑 Token trouvé:', token ? 'Oui (longueur: ' + token.length + ')' : 'Non');
+    console.log('👤 Utilisateur actuel:', currentUser);
+    
+    if (!token) {
+      console.error('❌ Aucun token trouvé - Redirection vers /login');
+      alert('Vous devez être connecté pour accéder à cette page');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+      return;
+    }
+    
+    // Vérifier si l'utilisateur a les permissions nécessaires
+    if (!['admin', 'manager', 'employee'].includes(currentUser.role)) {
+      console.error('❌ Permissions insuffisantes - Rôle:', currentUser.role);
+      alert('Vous n\'avez pas les permissions nécessaires pour accéder à cette page');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+      return;
+    }
+    
+    console.log('📡 Envoi de la requête vers /api/admin/users...');
+    const response = await fetch('http://localhost:8000/api/admin/users', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('📥 Réponse reçue - Status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        console.error('❌ Token invalide ou expiré (401)');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Détails de l\'erreur:', errorData);
+        alert('Votre session a expiré. Veuillez vous reconnecter.');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('currentUser');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        return;
+      }
+      
+      if (response.status === 403) {
+        console.error('❌ Accès refusé (403)');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Détails de l\'erreur:', errorData);
+        alert('Accès refusé. Vous n\'avez pas les permissions nécessaires.');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+        return;
+      }
+      
+      const errorText = await response.text();
+      console.error('❌ Erreur serveur:', errorText);
+      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Utilisateurs récupérés avec succès:', data);
+    console.log('📊 Nombre d\'utilisateurs:', data.data?.length || 0);
+    setUsers(data.data || data);
+  } catch (err) {
+    console.error('💥 Erreur lors de la récupération des utilisateurs:', err);
+    setError(err.message);
+    alert('Erreur: ' + err.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
+  useEffect(() => {
+    if (activeTab === "users") {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  const filteredUsers = users.filter(user => {
+  // Filtre par terme de recherche
+  const matchesSearch = 
+    user.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  
+  // Filtre par rôle
+  const matchesRole = 
+    roleFilter === "all" || 
+    (roleFilter === "admin" && user.role === "admin") ||
+    (roleFilter === "manager" && user.role === "manager") ||
+    (roleFilter === "employee" && user.role === "employee") ||
+    (roleFilter === "student" && user.role === "student");
+  
+  return matchesSearch && matchesRole;
+});
 
   return (
     <div className="min-h-screen bg-muted">
@@ -808,113 +995,166 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === "users" && (
-          <div className="mt-4 lg:mt-0">
-            {/* Filters and Search */}
-            <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Rechercher par nom ou email..."
-                    className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  {[
-                    { value: "all", label: "Tous" },
-                    { value: "student", label: "Étudiants" },
-                    { value: "employee", label: "Employés" },
-                    { value: "manager", label: "Managers" },
-                    { value: "admin", label: "Admins" },
-                  ].map(({ value, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => setRoleFilter(value)}
-                      className={`px-4 py-3 rounded-lg font-semibold whitespace-nowrap transition-colors ${
-                        roleFilter === value
-                          ? "bg-primary text-secondary"
-                          : "bg-muted text-foreground hover:bg-muted/80"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setShowUserModal(true)}
-                  className="bg-primary text-secondary px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors flex items-center gap-2 whitespace-nowrap"
-                >
-                  <Plus className="w-5 h-5" />
-                  Ajouter
-                </button>
-              </div>
-            </div>
+  <div className="mt-4 lg:mt-0">
+    {/* Header avec bouton Ajouter */}
+    <div className="flex justify-between items-center mb-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-800">Gestion des utilisateurs</h2>
+        <p className="text-gray-600">Gérez tous les utilisateurs et employés</p>
+      </div>
+      <button
+        onClick={() => {
+          resetUserForm();
+          setShowUserModal(true);
+        }}
+        className="flex items-center gap-2 bg-primary text-secondary px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+      >
+        <Plus className="w-5 h-5" />
+        Ajouter un utilisateur
+      </button>
+    </div>
 
-            {/* Users Table */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-sm font-semibold">Utilisateur</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold">Email</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold">Rôle</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold">Solde</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold">Points</th>
-                      <th className="px-6 py-4 text-right text-sm font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-                              <span className="font-bold text-primary">{user.name.charAt(0)}</span>
-                            </div>
-                            <div>
-                              <p className="font-semibold">{user.name}</p>
-                              <p className="text-xs text-muted-foreground">{user.phone || "N/A"}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm">{user.email}</td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(user.role)}`}
-                          >
-                            {getRoleLabel(user.role)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold">{user.balance || 0} F</td>
-                        <td className="px-6 py-4 text-sm font-semibold">{user.loyaltyPoints || 0}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => openEditUserModal(user)}
-                              className="p-2 hover:bg-primary/10 rounded-lg transition-colors"
-                            >
-                              <Edit className="w-4 h-4 text-primary" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="p-2 hover:bg-error/10 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4 text-error" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+    {/* Barre de recherche et filtres */}
+    <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Rechercher par nom ou email..."
+            className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {[
+            { value: "all", label: "Tous" },
+            { value: "student", label: "Étudiants" },
+            { value: "employee", label: "Employés" },
+            { value: "manager", label: "Managers" },
+            { value: "admin", label: "Admins" },
+          ].map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setRoleFilter(value)}
+              className={`px-4 py-3 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+                roleFilter === value
+                  ? "bg-primary text-secondary"
+                  : "bg-muted text-foreground hover:bg-muted/80"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Tableau des utilisateurs */}
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      {isLoading ? (
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4">Chargement des utilisateurs...</p>
+        </div>
+      ) : error ? (
+        <div className="p-8 text-center text-red-500">
+          <p>Erreur: {error}</p>
+          <button 
+            onClick={fetchUsers}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+          >
+            Réessayer
+          </button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-muted">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Utilisateur</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Email</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Rôle</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Téléphone</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Inscrit le</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredUsers.map((user) => (
+                <tr key={user.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+                        <span className="font-bold text-primary">
+                          {user.prenom?.charAt(0)}{user.nom?.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-semibold">{user.prenom} {user.nom}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {user.code_parrainage || 'Aucun code'}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm">{user.email}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.statut === 'actif' ? 'Compte actif' : 'Compte inactif'}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      user.role === 'manager' ? 'bg-amber-100 text-amber-800' :
+                      user.role === 'employee' ? 'bg-blue-100 text-blue-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {getRoleLabel(user.role)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.telephone || 'Non renseigné'}
+                  </td>
+                  <td className="px-6 py-4">
+                    {new Date(user.date_creation).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => openEditUserModal(user)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="Modifier"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id, user.type)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-muted-foreground">
+                    Aucun utilisateur trouvé
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {activeTab === "promotions" && (
           <div className="mt-4 lg:mt-0">
@@ -1463,16 +1703,28 @@ export default function AdminDashboard() {
             <form
               onSubmit={(e) => {
                 e.preventDefault()
-                editingUser ? handleEditUser() : handleAddUser()
+                editingUser ? handleUpdateUser() : handleCreateUser()
               }}
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium mb-2">Nom complet</label>
+                <label className="block text-sm font-medium mb-2">Nom</label>
                 <input
                   type="text"
-                  name="name"
-                  value={userFormData.name}
+                  name="nom"
+                  value={userFormData.nom}
+                  onChange={handleUserFormChange}
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Prénom</label>
+                <input
+                  type="text"
+                  name="prenom"
+                  value={userFormData.prenom}
                   onChange={handleUserFormChange}
                   className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   required
@@ -1495,54 +1747,85 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-medium mb-2">Téléphone</label>
                 <input
                   type="tel"
-                  name="phone"
-                  value={userFormData.phone}
+                  name="telephone"
+                  value={userFormData.telephone}
                   onChange={handleUserFormChange}
                   className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
                 />
               </div>
 
+              {!editingUser && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Mot de passe</label>
+                  <input
+                    type="password"
+                    name="mot_de_passe"
+                    value={userFormData.mot_de_passe}
+                    onChange={handleUserFormChange}
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    required
+                    minLength="8"
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="block text-sm font-medium mb-2">Rôle</label>
+                <label className="block text-sm font-medium mb-2">Type</label>
                 <select
-                  name="role"
-                  value={userFormData.role}
-                  onChange={handleUserFormChange}
+                  name="type"
+                  value={userFormData.type}
+                  onChange={(e) => {
+                    handleUserFormChange(e);
+                    // Mettre à jour le rôle et id_role selon le type
+                    const type = e.target.value;
+                    if (type === 'user') {
+                      setUserFormData(prev => ({ ...prev, role: 'student', id_role: 1 }));
+                    } else {
+                      setUserFormData(prev => ({ ...prev, role: 'employee', id_role: 2 }));
+                    }
+                  }}
                   className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={!!editingUser}
                 >
-                  <option value="student">Étudiant</option>
-                  <option value="employee">Employé</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Administrateur</option>
+                  <option value="user">Étudiant</option>
+                  <option value="employe">Employé</option>
                 </select>
               </div>
 
-              {userFormData.role === "student" && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Solde (F)</label>
-                    <input
-                      type="number"
-                      name="balance"
-                      value={userFormData.balance}
-                      onChange={handleUserFormChange}
-                      className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      min="0"
-                    />
-                  </div>
+              {userFormData.type === 'employe' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Rôle</label>
+                  <select
+                    name="id_role"
+                    value={userFormData.id_role}
+                    onChange={(e) => {
+                      handleUserFormChange(e);
+                      // Mettre à jour le rôle textuel
+                      const idRole = parseInt(e.target.value);
+                      const roleMap = { 1: 'student', 2: 'employee', 3: 'manager', 4: 'admin' };
+                      setUserFormData(prev => ({ ...prev, role: roleMap[idRole] }));
+                    }}
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="2">Employé</option>
+                    <option value="3">Manager</option>
+                    <option value="4">Administrateur</option>
+                  </select>
+                </div>
+              )}
 
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Points de fidélité</label>
-                    <input
-                      type="number"
-                      name="loyaltyPoints"
-                      value={userFormData.loyaltyPoints}
-                      onChange={handleUserFormChange}
-                      className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      min="0"
-                    />
-                  </div>
-                </>
+              {userFormData.type === 'user' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Localisation</label>
+                  <input
+                    type="text"
+                    name="localisation"
+                    value={userFormData.localisation}
+                    onChange={handleUserFormChange}
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
               )}
 
               <div className="flex gap-3 pt-4">

@@ -1,12 +1,7 @@
 -- Voir tous les tokens actuels
-SELECT 
-    id,
-    tokenable_type,
-    tokenable_id,
-    name,
-    created_at
-FROM zeduc_schema.personal_access_tokens
-ORDER BY created_at DESC;
+UPDATE zeduc_schema.employes
+SET actif = 'oui'
+WHERE actif = 'non';
 
 -- Supprimer TOUS les tokens de User (étudiants)
 DELETE FROM zeduc_schema.personal_access_tokens 

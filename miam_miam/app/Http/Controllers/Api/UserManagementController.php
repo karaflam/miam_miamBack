@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class UserManagementController extends Controller
@@ -17,41 +18,94 @@ class UserManagementController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::query();
+        // Récupérer les utilisateurs (étudiants)
+        $users = User::query()
+            ->select([
+                'id_utilisateur as id',
+                'nom',
+                'prenom',
+                'email',
+                'telephone',
+                'localisation',
+                'code_parrainage',
+                'id_parrain',
+                'point_fidelite',
+                'statut',
+                'date_creation',
+                DB::raw("'student' as role"),
+                DB::raw("'user' as type")
+            ]);
+
+        // Récupérer les employés
+        $employes = \App\Models\Employe::query()
+            ->select([
+                'id_employe as id',
+                'nom',
+                'prenom',
+                'email',
+                'telephone',
+                DB::raw("NULL::text as localisation"),
+                DB::raw("NULL::text as code_parrainage"),
+                DB::raw("NULL::integer as id_parrain"),
+                DB::raw("0 as point_fidelite"),
+                DB::raw("CASE WHEN actif = 'oui' THEN 'actif' ELSE 'inactif' END as statut"),
+                'date_creation',
+                DB::raw("CASE 
+                    WHEN id_role = 1 THEN 'student'
+                    WHEN id_role = 2 THEN 'employee'
+                    WHEN id_role = 3 THEN 'manager'
+                    WHEN id_role = 4 THEN 'admin'
+                    ELSE 'employee'
+                END as role"),
+                DB::raw("'employe' as type")
+            ]);
+
+        // Combiner les deux requêtes
+        $allUsers = $users->union($employes);
 
         // Recherche par nom, prénom ou email
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('prenom', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('telephone', 'like', "%{$search}%");
-            });
+            $allUsers = DB::table(DB::raw("({$allUsers->toSql()}) as combined_users"))
+                ->mergeBindings($allUsers->getQuery())
+                ->where(function($q) use ($search) {
+                    $q->where('nom', 'like', "%{$search}%")
+                      ->orWhere('prenom', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('telephone', 'like', "%{$search}%");
+                });
+        } else {
+            $allUsers = DB::table(DB::raw("({$allUsers->toSql()}) as combined_users"))
+                ->mergeBindings($allUsers->getQuery());
+        }
+
+        // Filtre par rôle
+        if ($request->has('role') && $request->role !== 'all') {
+            $allUsers->where('role', $request->role);
         }
 
         // Filtre par statut
         if ($request->has('statut')) {
-            $query->where('statut', $request->statut);
+            $allUsers->where('statut', $request->statut);
         }
 
         // Tri
         $sortBy = $request->get('sort_by', 'date_creation');
         $sortOrder = $request->get('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
+        $allUsers->orderBy($sortBy, $sortOrder);
 
         // Pagination
         $perPage = $request->get('per_page', 15);
-        $users = $query->with(['commandes', 'paiements', 'filleuls'])->paginate($perPage);
+        $results = $allUsers->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'data' => UserResource::collection($users),
+            'data' => $results->items(),
             'meta' => [
-                'current_page' => $users->currentPage(),
-                'last_page' => $users->lastPage(),
-                'per_page' => $users->perPage(),
-                'total' => $users->total(),
+                'current_page' => $results->currentPage(),
+                'last_page' => $results->lastPage(),
+                'per_page' => $results->perPage(),
+                'total' => $results->total(),
             ]
         ]);
     }
@@ -85,14 +139,28 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Crée un nouvel utilisateur
+     * Crée un nouvel utilisateur (étudiant ou employé)
      */
     public function store(Request $request)
+    {
+        $type = $request->input('type', 'user'); // 'user' ou 'employe'
+        
+        if ($type === 'employe') {
+            return $this->createEmploye($request);
+        }
+        
+        return $this->createUser($request);
+    }
+    
+    /**
+     * Crée un nouvel utilisateur étudiant
+     */
+    private function createUser(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'nom' => 'required|string|max:255',
             'prenom' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required|email|unique:users,email|unique:employes,email',
             'telephone' => 'required|string|max:20',
             'mot_de_passe' => 'required|string|min:8',
             'localisation' => 'nullable|string',
@@ -128,14 +196,77 @@ class UserManagementController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur créé avec succès',
-            'data' => new UserResource($user)
+            'data' => $user
+        ], 201);
+    }
+    
+    /**
+     * Crée un nouvel employé
+     */
+    private function createEmploye(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nom' => 'required|string|max:255',
+            'prenom' => 'required|string|max:255',
+            'email' => 'required|email|unique:employes,email|unique:users,email',
+            'telephone' => 'required|string|max:20',
+            'mot_de_passe' => 'required|string|min:8',
+            'id_role' => 'required|exists:roles,id_role',
+            'date_embauche' => 'nullable|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $currentUser = auth()->user();
+        $idCreateur = null;
+        
+        // Déterminer l'ID du créateur selon le type d'utilisateur connecté
+        if ($currentUser && get_class($currentUser) === 'App\Models\Employe') {
+            $idCreateur = $currentUser->id_employe;
+        }
+        
+        $employe = \App\Models\Employe::create([
+            'nom' => $request->nom,
+            'prenom' => $request->prenom,
+            'email' => $request->email,
+            'telephone' => $request->telephone,
+            'mot_de_passe' => Hash::make($request->mot_de_passe),
+            'id_role' => $request->id_role,
+            'date_embauche' => $request->date_embauche ?? now(),
+            'actif' => 'oui',
+            'id_createur' => $idCreateur,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Employé créé avec succès',
+            'data' => $employe
         ], 201);
     }
 
     /**
-     * Met à jour un utilisateur existant
+     * Met à jour un utilisateur existant (étudiant ou employé)
      */
     public function update(Request $request, $id)
+    {
+        $type = $request->input('type', 'user');
+        
+        if ($type === 'employe') {
+            return $this->updateEmploye($request, $id);
+        }
+        
+        return $this->updateUser($request, $id);
+    }
+    
+    /**
+     * Met à jour un utilisateur étudiant
+     */
+    private function updateUser(Request $request, $id)
     {
         $user = User::find($id);
 
@@ -149,7 +280,7 @@ class UserManagementController extends Controller
         $validator = Validator::make($request->all(), [
             'nom' => 'sometimes|string|max:255',
             'prenom' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $id . ',id_utilisateur',
+            'email' => 'sometimes|email|unique:users,email,' . $id . ',id_utilisateur|unique:employes,email',
             'telephone' => 'sometimes|string|max:20',
             'localisation' => 'nullable|string',
             'point_fidelite' => 'sometimes|integer|min:0',
@@ -171,7 +302,48 @@ class UserManagementController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur mis à jour avec succès',
-            'data' => new UserResource($user->fresh())
+            'data' => $user->fresh()
+        ]);
+    }
+    
+    /**
+     * Met à jour un employé
+     */
+    private function updateEmploye(Request $request, $id)
+    {
+        $employe = \App\Models\Employe::find($id);
+
+        if (!$employe) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Employé non trouvé'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'nom' => 'sometimes|string|max:255',
+            'prenom' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|unique:employes,email,' . $id . ',id_employe|unique:users,email',
+            'telephone' => 'sometimes|string|max:20',
+            'id_role' => 'sometimes|exists:roles,id_role',
+            'actif' => 'sometimes|in:oui,non',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $employe->update($request->only([
+            'nom', 'prenom', 'email', 'telephone', 'id_role', 'actif'
+        ]));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Employé mis à jour avec succès',
+            'data' => $employe->fresh()
         ]);
     }
 
@@ -211,10 +383,31 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Supprime (désactive) un utilisateur
+     * Supprime (désactive) un utilisateur (étudiant ou employé)
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $type = $request->input('type', 'user');
+        
+        if ($type === 'employe') {
+            $employe = \App\Models\Employe::find($id);
+            
+            if (!$employe) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Employé non trouvé'
+                ], 404);
+            }
+            
+            // Désactiver l'employé
+            $employe->update(['actif' => 'non']);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Employé désactivé avec succès'
+            ]);
+        }
+        
         $user = User::find($id);
 
         if (!$user) {
