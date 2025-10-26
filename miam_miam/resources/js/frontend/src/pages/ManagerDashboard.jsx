@@ -242,11 +242,13 @@ export default function ManagerDashboard() {
   }
 
   const filteredEmployees = employees.filter((employee) => {
-    const matchesSearch =
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRole = roleFilter === "all" || employee.role === roleFilter
-    return matchesSearch && matchesRole
+    const fullName = `${employee.prenom || ''} ${employee.nom || ''}`.toLowerCase();
+    const email = (employee.email || '').toLowerCase();
+    const search = searchTerm.toLowerCase();
+    
+    const matchesSearch = fullName.includes(search) || email.includes(search);
+    const matchesRole = roleFilter === "all" || employee.role === roleFilter;
+    return matchesSearch && matchesRole;
   })
 
   const handleAddItem = () => {
@@ -311,6 +313,9 @@ export default function ManagerDashboard() {
       const token = localStorage.getItem('auth_token');
       let url = 'http://localhost:8000/api/menu';
       const params = new URLSearchParams();
+      
+      // Afficher tous les articles pour le staff
+      params.append('show_all', 'true');
       
       if (selectedCategory !== 'all') {
         params.append('categorie', selectedCategory);
@@ -540,7 +545,7 @@ export default function ManagerDashboard() {
       const data = await response.json();
       if (data.success) {
         // Filtrer pour exclure les admins (le gérant ne doit pas voir les admins)
-        const filteredUsers = data.data.data.filter(user => user.role !== 'admin');
+        const filteredUsers = data.data ? data.data.filter(user => user.role !== 'admin') : [];
         setUsers(filteredUsers);
         // Séparer les employés pour la section employees
         setEmployees(filteredUsers.filter(u => u.role === 'employee' || u.role === 'manager'));

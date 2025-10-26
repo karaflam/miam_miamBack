@@ -1,7 +1,7 @@
 -- Script pour vérifier et corriger les rôles dans la base de données
 
--- 1. Vérifier les rôles existants
-SELECT * FROM zeduc_schema.roles ORDER BY id_role;
+-- 1. Vérifier les rôles existants (EXÉCUTER EN PREMIER)
+SELECT id_role, nom_role, description FROM zeduc_schema.roles ORDER BY id_role;
 
 -- 2. Vérifier les employés et leurs rôles
 SELECT 

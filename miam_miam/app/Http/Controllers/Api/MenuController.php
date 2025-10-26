@@ -15,17 +15,21 @@ class MenuController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Menu::with('categorie');
+        $query = Menu::with(['categorie', 'stock']);
 
         // Filtrer par catégorie si spécifié
         if ($request->has('categorie')) {
             $query->where('id_categorie', $request->categorie);
         }
 
-        // Filtrer par disponibilité (par défaut, seulement les disponibles pour le public)
-        if ($request->has('disponible')) {
+        // Filtrer par disponibilité
+        // Si 'show_all' est présent (pour le staff), afficher tous les articles
+        if ($request->has('show_all') && $request->show_all == 'true') {
+            // Pas de filtre, afficher tous les articles
+        } elseif ($request->has('disponible')) {
             $query->where('disponible', $request->disponible);
         } else {
+            // Par défaut, seulement les disponibles pour le public
             $query->disponible();
         }
 

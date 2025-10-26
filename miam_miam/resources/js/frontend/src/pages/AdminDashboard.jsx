@@ -163,6 +163,9 @@ const fetchMenuItems = async () => {
     let url = 'http://localhost:8000/api/menu';
     const params = new URLSearchParams();
     
+    // Afficher tous les articles pour le staff
+    params.append('show_all', 'true');
+    
     if (selectedCategory !== 'all') {
       params.append('categorie', selectedCategory);
     }
@@ -479,6 +482,58 @@ const resetMenuForm = () => {
       alert('Erreur lors de la suppression de l\'utilisateur');
     }
   }
+
+  const handleSuspendUser = async (user) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/admin/users/${user.id}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de suspendre l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur suspendu avec succès!');
+      fetchUsers();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la suspension de l\'utilisateur');
+    }
+  };
+
+  const handleActivateUser = async (user) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/admin/users/${user.id}/activate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible d\'activer l\'utilisateur'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Utilisateur activé avec succès!');
+      fetchUsers();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de l\'activation de l\'utilisateur');
+    }
+  };
 
   // Fonctions pour la gestion des mini-jeux
   const handleGameFormChange = (e) => {
@@ -862,9 +917,9 @@ const resetMenuForm = () => {
   const filteredUsers = users.filter(user => {
   // Filtre par terme de recherche
   const matchesSearch = 
-    user.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    (user.nom || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.prenom || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
   
   // Filtre par rôle
   const matchesRole = 
@@ -1291,6 +1346,23 @@ const resetMenuForm = () => {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      {user.statut === 'actif' ? (
+                        <button
+                          onClick={() => handleSuspendUser(user)}
+                          className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg"
+                          title="Suspendre"
+                        >
+                          <Ban className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleActivateUser(user)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                          title="Activer"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDeleteUser(user.id, user.type)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg"

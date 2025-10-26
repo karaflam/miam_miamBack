@@ -38,37 +38,48 @@ class CheckRole
                 $nomRole = strtolower(trim($user->role->nom_role));
                 
                 // Log pour déboguer (à retirer en production)
-                Log::info('CheckRole - Nom du rôle:', ['nom_role' => $nomRole, 'roles_autorises' => $roles]);
+                Log::info('CheckRole - Vérification:', [
+                    'nom_role' => $nomRole, 
+                    'nom_role_original' => $user->role->nom_role,
+                    'roles_autorises' => $roles,
+                    'user_email' => $user->email
+                ]);
+                
+                // Correspondances directes et alias (définies une seule fois)
+                $correspondances = [
+                    'admin' => ['admin', 'administrateur'],
+                    'employe' => ['employe', 'employee'],
+                    'manager' => ['manager', 'gerant'],
+                    'student' => ['student', 'etudiant']
+                ];
                 
                 // Vérifier si le rôle de l'employé correspond à un des rôles autorisés
                 foreach ($roles as $role) {
                     $roleAutorise = strtolower(trim($role));
                     
-                    // Correspondances directes et alias
-                    $correspondances = [
-                        'admin' => ['admin', 'administrateur', 'administrator'],
-                        'employe' => ['employe', 'employé', 'employee', 'staff', 'gerant', 'gérant', 'manager'],
-                        'manager' => ['manager', 'gerant', 'gérant', 'gestionnaire'],
-                        'student' => ['student', 'etudiant', 'étudiant']
-                    ];
-                    
-                    // Vérification directe
+                    // 1. Vérification directe
                     if ($nomRole === $roleAutorise) {
+                        Log::info('CheckRole - Accès autorisé (correspondance directe)');
                         return $next($request);
                     }
                     
-                    // Vérification via correspondances
+                    // 2. Vérification via correspondances du rôle autorisé
                     if (isset($correspondances[$roleAutorise]) && in_array($nomRole, $correspondances[$roleAutorise])) {
+                        Log::info('CheckRole - Accès autorisé (via correspondances)', ['roleAutorise' => $roleAutorise]);
                         return $next($request);
                     }
                     
-                    // Vérification inverse (si le nom du rôle est dans les correspondances du rôle autorisé)
-                    foreach ($correspondances as $key => $aliases) {
-                        if ($roleAutorise === $key && in_array($nomRole, $aliases)) {
-                            return $next($request);
-                        }
+                    // 3. Vérification inverse : le nom du rôle correspond-il à une clé et le rôle autorisé est dans ses alias ?
+                    if (isset($correspondances[$nomRole]) && in_array($roleAutorise, $correspondances[$nomRole])) {
+                        Log::info('CheckRole - Accès autorisé (correspondance inverse)');
+                        return $next($request);
                     }
                 }
+                
+                Log::warning('CheckRole - Accès refusé', [
+                    'nom_role' => $nomRole,
+                    'roles_autorises' => $roles
+                ]);
             } else {
                 Log::warning('CheckRole - Utilisateur sans rôle:', ['user_id' => $user->id_employe]);
             }

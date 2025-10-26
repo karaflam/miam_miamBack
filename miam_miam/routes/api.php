@@ -67,6 +67,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/referrals', [ReferralController::class, 'getReferrals']);
     });
     
+    // Debug (à retirer en production)
+    Route::get('/debug/whoami', [App\Http\Controllers\Api\DebugController::class, 'whoami']);
+    
     // Commandes
     Route::post('/commandes', [CommandeController::class, 'store']);
     Route::get('/commandes/mes-commandes', [CommandeController::class, 'index']);
@@ -78,7 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reclamations/{id}', [ReclamationController::class, 'show']);
     
     // Réclamations (staff uniquement)
-    Route::middleware('role:admin,employe')->prefix('staff/reclamations')->group(function () {
+    Route::middleware('role:admin,employe,manager')->prefix('staff/reclamations')->group(function () {
         Route::get('/', [ReclamationController::class, 'getAllReclamations']);
         Route::get('/statistics', [ReclamationController::class, 'statistics']);
         Route::post('/{id}/assign', [ReclamationController::class, 'assign']);
@@ -90,11 +93,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/paiement/verifier/{transactionId}', [PaiementController::class, 'verifier']);
     
     // Menu admin
-    Route::middleware('role:admin,employe')->group(function () {
+    Route::middleware('role:admin,employe,manager')->group(function () {
         Route::post('/menu', [MenuController::class, 'store']);
         Route::put('/menu/{id}', [MenuController::class, 'update']);
         Route::delete('/menu/{id}', [MenuController::class, 'destroy']);
         Route::post('/menu/{id}/toggle-disponibilite', [MenuController::class, 'toggleDisponibilite']);
+        
+        // Gestion du stock
+        Route::put('/stock/{id_article}', [App\Http\Controllers\Api\StockController::class, 'update']);
+        Route::post('/stock/{id_article}/adjust', [App\Http\Controllers\Api\StockController::class, 'adjust']);
+        Route::get('/stock/ruptures', [App\Http\Controllers\Api\StockController::class, 'ruptures']);
+        Route::get('/stock/alertes', [App\Http\Controllers\Api\StockController::class, 'alertes']);
     });
 
     // Fidélité
@@ -119,7 +128,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/usage-promo', [App\Http\Controllers\Api\UsagePromoController::class, 'index']);
     
     // Gestion des utilisateurs (Admin/Staff uniquement)
-    Route::middleware('role:admin,employe')->prefix('admin/users')->group(function () {
+    Route::middleware('role:admin,employe,manager')->prefix('admin/users')->group(function () {
         Route::get('/', [UserManagementController::class, 'index']);
         Route::get('/statistics', [UserManagementController::class, 'statistics']);
         Route::get('/{id}', [UserManagementController::class, 'show']);

@@ -51,6 +51,9 @@ export default function EmployeeDashboard() {
       let url = 'http://localhost:8000/api/menu';
       const params = new URLSearchParams();
       
+      // Afficher tous les articles pour le staff
+      params.append('show_all', 'true');
+      
       if (selectedCategory !== 'all') {
         params.append('categorie', selectedCategory);
       }

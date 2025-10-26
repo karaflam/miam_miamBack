@@ -284,7 +284,7 @@ class UserManagementController extends Controller
             'telephone' => 'sometimes|string|max:20',
             'localisation' => 'nullable|string',
             'point_fidelite' => 'sometimes|integer|min:0',
-            'statut' => 'sometimes|in:actif,inactif,suspendu',
+            'statut' => 'sometimes|in:actif,inactif',
         ]);
 
         if ($validator->fails()) {
@@ -427,49 +427,86 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Active un utilisateur
+     * Active un utilisateur (étudiant ou employé)
      */
     public function activate($id)
     {
+        // Chercher d'abord dans les utilisateurs (étudiants)
         $user = User::find($id);
 
-        if (!$user) {
+        if ($user) {
+            $user->update(['statut' => 'actif']);
             return response()->json([
-                'success' => false,
-                'message' => 'Utilisateur non trouvé'
-            ], 404);
+                'success' => true,
+                'message' => 'Utilisateur activé avec succès',
+                'data' => new UserResource($user->fresh())
+            ]);
         }
 
-        $user->update(['statut' => 'actif']);
+        // Sinon chercher dans les employés
+        $employe = \App\Models\Employe::find($id);
+
+        if ($employe) {
+            $employe->update(['actif' => 'oui']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Employé activé avec succès',
+                'data' => [
+                    'id' => $employe->id_employe,
+                    'nom' => $employe->nom,
+                    'prenom' => $employe->prenom,
+                    'email' => $employe->email,
+                    'actif' => $employe->actif
+                ]
+            ]);
+        }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur activé avec succès',
-            'data' => new UserResource($user->fresh())
-        ]);
+            'success' => false,
+            'message' => 'Utilisateur non trouvé'
+        ], 404);
     }
 
     /**
-     * Suspend un utilisateur
+     * Suspend un utilisateur (étudiant ou employé)
      */
     public function suspend($id)
     {
+        // Chercher d'abord dans les utilisateurs (étudiants)
         $user = User::find($id);
 
-        if (!$user) {
+        if ($user) {
+            // Utiliser 'inactif' au lieu de 'suspendu' car l'enum ne contient que ['actif', 'inactif']
+            $user->update(['statut' => 'inactif']);
             return response()->json([
-                'success' => false,
-                'message' => 'Utilisateur non trouvé'
-            ], 404);
+                'success' => true,
+                'message' => 'Utilisateur suspendu avec succès',
+                'data' => new UserResource($user->fresh())
+            ]);
         }
 
-        $user->update(['statut' => 'suspendu']);
+        // Sinon chercher dans les employés
+        $employe = \App\Models\Employe::find($id);
+
+        if ($employe) {
+            $employe->update(['actif' => 'non']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Employé suspendu avec succès',
+                'data' => [
+                    'id' => $employe->id_employe,
+                    'nom' => $employe->nom,
+                    'prenom' => $employe->prenom,
+                    'email' => $employe->email,
+                    'actif' => $employe->actif
+                ]
+            ]);
+        }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur suspendu avec succès',
-            'data' => new UserResource($user->fresh())
-        ]);
+            'success' => false,
+            'message' => 'Utilisateur non trouvé'
+        ], 404);
     }
 
     /**
@@ -480,7 +517,7 @@ class UserManagementController extends Controller
         $totalUsers = User::count();
         $activeUsers = User::where('statut', 'actif')->count();
         $inactiveUsers = User::where('statut', 'inactif')->count();
-        $suspendedUsers = User::where('statut', 'suspendu')->count();
+        // Pas de statut 'suspendu' dans l'enum, on utilise 'inactif'
         $newUsersThisMonth = User::whereMonth('date_creation', now()->month)
                                   ->whereYear('date_creation', now()->year)
                                   ->count();
@@ -491,7 +528,6 @@ class UserManagementController extends Controller
                 'total' => $totalUsers,
                 'actif' => $activeUsers,
                 'inactif' => $inactiveUsers,
-                'suspendu' => $suspendedUsers,
                 'nouveaux_ce_mois' => $newUsersThisMonth,
             ]
         ]);

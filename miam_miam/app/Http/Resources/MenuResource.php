@@ -19,9 +19,12 @@ class MenuResource extends JsonResource
             'temps_preparation' => $this->temps_preparation,
             'categorie' => new CategorieResource($this->whenLoaded('categorie')),
             'stock' => $this->whenLoaded('stock', function() {
-                return [
-                    'quantite_disponible' => $this->stock->quantite_disponible
-                ];
+                return $this->stock ? [
+                    'quantite_disponible' => $this->stock->quantite_disponible,
+                    'seuil_alerte' => $this->stock->seuil_alerte,
+                    'en_rupture' => $this->stock->quantite_disponible <= 0,
+                    'alerte_stock' => $this->stock->quantite_disponible <= $this->stock->seuil_alerte && $this->stock->quantite_disponible > 0
+                ] : null;
             }),
             'date_creation' => $this->date_creation?->format('Y-m-d H:i:s'),
             'date_modification' => $this->date_modification?->format('Y-m-d H:i:s'),
