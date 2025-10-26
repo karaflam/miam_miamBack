@@ -20,6 +20,14 @@ class CommandeResource extends JsonResource
             'montant_remise' => $this->montant_remise,
             'montant_final' => $this->montant_final,
             'points_utilises' => $this->points_utilises,
+            'date_commande' => $this->date_commande,
+            'utilisateur' => [
+                'id' => $this->utilisateur->id ?? null,
+                'nom' => $this->utilisateur->nom ?? '',
+                'prenom' => $this->utilisateur->prenom ?? '',
+                'email' => $this->utilisateur->email ?? '',
+                'telephone' => $this->utilisateur->telephone ?? '',
+            ],
             'details' => DetailCommandeResource::collection($this->whenLoaded('details'))
         ];
     }

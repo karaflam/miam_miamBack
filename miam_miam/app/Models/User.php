@@ -21,7 +21,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'nom', 'prenom', 'email', 'mot_de_passe', 'telephone',
-        'localisation', 'code_parrainage', 'id_parrain', 'point_fidelite', 'statut'
+        'localisation', 'code_parrainage', 'id_parrain', 'point_fidelite', 'solde', 'statut'
     ];
 
     /**
@@ -49,6 +49,7 @@ class User extends Authenticatable
 
     protected $casts = [
         'point_fidelite' => 'integer',
+        'solde' => 'decimal:2',
         'date_creation' => 'datetime',
         'date_modification' => 'datetime',
     ];

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import { referralService } from "../services/api"
-import { mockOrders } from "../data/mockData"
 import Blackjack from "../../components/student/Game/blackjack/Blackjack"
 import CulinaryQuiz from "../../components/student/Game/Quiz/CulinaryQuiz"
 import {
@@ -29,7 +28,7 @@ import {
 } from "lucide-react"
 
 export default function StudentDashboard() {
-  const { user, updateBalance, updateLoyaltyPoints } = useAuth()
+  const { user, updateBalance, updateLoyaltyPoints, refreshUser } = useAuth()
   const [activeTab, setActiveTab] = useState("menu")
   const [cart, setCart] = useState([])
   const [menuItems, setMenuItems] = useState([])
@@ -37,7 +36,8 @@ export default function StudentDashboard() {
   const [isLoadingMenu, setIsLoadingMenu] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [searchMenuTerm, setSearchMenuTerm] = useState('')
-  const [orders, setOrders] = useState(mockOrders.filter((o) => o.userId === user?.id))
+  const [orders, setOrders] = useState([])
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [showRechargeModal, setShowRechargeModal] = useState(false)
   const [rechargeAmount, setRechargeAmount] = useState("")
   const [copied, setCopied] = useState(false)
@@ -48,6 +48,18 @@ export default function StudentDashboard() {
   const [loadingReferral, setLoadingReferral] = useState(false)
   const [referralError, setReferralError] = useState(null)
   const [activeGame, setActiveGame] = useState(null) // null, 'blackjack', 'quiz'
+  
+  // États pour les réclamations
+  const [complaintSubject, setComplaintSubject] = useState("")
+  const [complaintMessage, setComplaintMessage] = useState("")
+  const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false)
+  const [complaintSuccess, setComplaintSuccess] = useState(false)
+  const [complaintError, setComplaintError] = useState(null)
+  
+  // États pour le checkout
+  const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const [pointsToUse, setPointsToUse] = useState(0)
+  const [deliveryType, setDeliveryType] = useState("sur_place")
 
   // Charger les données du menu
   const fetchCategories = async () => {
@@ -96,11 +108,45 @@ export default function StudentDashboard() {
     }
   };
 
+  // Fonction pour charger l'historique des commandes
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/commandes/mes-commandes', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setOrders(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur chargement commandes:', error);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  // Rafraîchir les données utilisateur au chargement
+  useEffect(() => {
+    const refreshUserData = async () => {
+      await refreshUser();
+    };
+    refreshUserData();
+  }, []);
+
   // Charger le menu au montage et quand les filtres changent
   useEffect(() => {
     if (activeTab === "menu") {
       fetchCategories();
       fetchMenuItems();
+    }
+    if (activeTab === "history") {
+      fetchOrders();
     }
   }, [activeTab, selectedCategory, searchMenuTerm]);
 
@@ -180,49 +226,126 @@ export default function StudentDashboard() {
     setCart(cart.filter((item) => item.id !== itemId))
   }
 
-  const handleCheckout = (deliveryType) => {
-    if (cartTotal > user.balance) {
-      alert("Solde insuffisant. Veuillez recharger votre compte.")
+  const handleCheckout = async (deliveryType) => {
+    // Calculer la remise avec les points (1 point = 100 FCFA)
+    const remise = pointsToUse * 100;
+    const montantFinal = Math.max(0, cartTotal - remise);
+
+    if (montantFinal > user.balance) {
+      alert(`Solde insuffisant. Montant à payer: ${montantFinal} FCFA, Solde actuel: ${user.balance} FCFA`)
       return
     }
 
-    const newOrder = {
-      id: Date.now().toString(),
-      userId: user.id,
-      userName: user.name,
-      items: cart.map((item) => ({
-        menuItemId: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-      total: cartTotal,
-      status: "pending",
-      deliveryType,
-      createdAt: new Date().toISOString(),
+    if (pointsToUse > user.loyaltyPoints) {
+      alert(`Points insuffisants. Vous avez ${user.loyaltyPoints} points.`)
+      return
     }
 
-    setOrders([newOrder, ...orders])
-    updateBalance(-cartTotal)
+    setIsCheckingOut(true);
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      // Préparer les données de la commande
+      const commandeData = {
+        type_livraison: deliveryType === "delivery" ? "livraison" : "sur_place",
+        articles: cart.map((item) => ({
+          id: item.id,
+          quantite: item.quantity,
+          prix: item.price
+        })),
+        commentaire_client: "",
+        points_utilises: pointsToUse
+      };
 
-    // Calculate loyalty points: 1000F = 1 point
-    const pointsEarned = Math.floor(cartTotal / 1000)
-    if (pointsEarned > 0) {
-      updateLoyaltyPoints(pointsEarned)
+      console.log('Envoi de la commande:', commandeData);
+
+      const response = await fetch('http://localhost:8000/api/commandes', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(commandeData)
+      });
+
+      const data = await response.json();
+      
+      console.log('Réponse du serveur:', data);
+      
+      if (data.success) {
+        const commande = data.data;
+        
+        // Rafraîchir les données utilisateur depuis le serveur
+        await refreshUser();
+
+        setCart([]);
+        setPointsToUse(0);
+        setActiveTab("history");
+        
+        // Message de succès détaillé
+        const pointsGagnes = Math.floor(commande.montant_final / 1000);
+        let message = `✅ Commande passée avec succès!\n\n`;
+        message += `💰 Montant total: ${commande.montant_total} FCFA\n`;
+        if (commande.montant_remise > 0) {
+          message += `🎁 Remise (${pointsToUse} points): -${commande.montant_remise} FCFA\n`;
+        }
+        message += `💳 Montant payé: ${commande.montant_final} FCFA\n`;
+        message += `⭐ Points gagnés: ${pointsGagnes}\n`;
+        message += `📦 Type: ${deliveryType === "delivery" ? "Livraison" : "Sur place"}`;
+        
+        alert(message);
+        
+        // Recharger l'historique
+        fetchOrders();
+      } else {
+        console.error('Erreur serveur:', data);
+        alert(`❌ Erreur: ${data.message || data.error || 'Impossible de passer la commande'}`);
+      }
+    } catch (error) {
+      console.error('Erreur checkout:', error);
+      alert('❌ Erreur lors de la commande. Veuillez réessayer.');
+    } finally {
+      setIsCheckingOut(false);
     }
-
-    setCart([])
-    setActiveTab("history")
-    alert(`Commande passée avec succès! Vous avez gagné ${pointsEarned} point(s) de fidélité.`)
   }
 
-  const handleRecharge = () => {
+  const handleRecharge = async () => {
     const amount = Number.parseInt(rechargeAmount)
-    if (amount > 0) {
-      updateBalance(amount)
-      setShowRechargeModal(false)
-      setRechargeAmount("")
-      alert(`Compte rechargé de ${amount} F avec succès!`)
+    if (!amount || amount <= 0) {
+      alert('Veuillez entrer un montant valide')
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      const response = await fetch('http://localhost:8000/api/paiement/recharger', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ montant: amount })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Rafraîchir les données utilisateur depuis le serveur
+        await refreshUser();
+        
+        setShowRechargeModal(false)
+        setRechargeAmount("")
+        alert(`✅ Compte rechargé de ${amount} FCFA avec succès!\n\nNouveau solde: ${data.data.nouveau_solde} FCFA`)
+      } else {
+        alert(`❌ Erreur: ${data.error || 'Impossible de recharger le compte'}`)
+      }
+    } catch (error) {
+      console.error('Erreur recharge:', error);
+      alert('❌ Erreur lors de la recharge. Veuillez réessayer.')
     }
   }
 
@@ -242,6 +365,60 @@ export default function StudentDashboard() {
       alert(`Félicitations ! Vous avez gagné ${points} points de fidélité !`)
     }
     setActiveGame(null)
+  }
+
+  // Fonction pour soumettre une réclamation
+  const handleComplaintSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!complaintSubject.trim() || !complaintMessage.trim()) {
+      setComplaintError("Veuillez remplir tous les champs");
+      return;
+    }
+
+    setIsSubmittingComplaint(true);
+    setComplaintError(null);
+    setComplaintSuccess(false);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      const reclamationData = {
+        sujet: complaintSubject,
+        description: complaintMessage
+      };
+
+      const response = await fetch('http://localhost:8000/api/reclamations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reclamationData)
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setComplaintSuccess(true);
+        setComplaintSubject("");
+        setComplaintMessage("");
+        
+        // Message de succès
+        setTimeout(() => {
+          alert("✅ Réclamation envoyée avec succès!\n\nNotre équipe va traiter votre demande dans les plus brefs délais.");
+          setComplaintSuccess(false);
+        }, 500);
+      } else {
+        setComplaintError(data.message || 'Impossible d\'envoyer la réclamation');
+      }
+    } catch (error) {
+      console.error('Erreur réclamation:', error);
+      setComplaintError('Erreur lors de l\'envoi. Veuillez réessayer.');
+    } finally {
+      setIsSubmittingComplaint(false);
+    }
   }
 
   const canUseDiscount = user.loyaltyPoints >= 15
@@ -435,7 +612,12 @@ export default function StudentDashboard() {
             {activeTab === "history" && (
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold mb-6">Historique des commandes</h2>
-                {orders.length === 0 ? (
+                {isLoadingOrders ? (
+                  <div className="bg-white rounded-xl p-12 text-center">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Chargement de vos commandes...</p>
+                  </div>
+                ) : orders.length === 0 ? (
                   <div className="bg-white rounded-xl p-12 text-center">
                     <History className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">Aucune commande pour le moment</p>
@@ -445,9 +627,9 @@ export default function StudentDashboard() {
                     <div key={order.id} className="bg-white rounded-xl p-6 shadow-lg">
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <p className="font-semibold text-lg">Commande #{order.id.slice(-6)}</p>
+                          <p className="font-semibold text-lg">Commande #{order.id}</p>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(order.createdAt).toLocaleDateString("fr-FR", {
+                            {new Date(order.date_commande).toLocaleDateString("fr-FR", {
                               day: "numeric",
                               month: "long",
                               year: "numeric",
@@ -458,37 +640,60 @@ export default function StudentDashboard() {
                         </div>
                         <span
                           className={`px-4 py-1 rounded-full text-sm font-semibold ${
-                            order.status === "completed"
+                            order.statut === "livree"
                               ? "bg-success/20 text-success"
-                              : order.status === "preparing"
+                              : order.statut === "en_preparation"
                                 ? "bg-warning/20 text-warning"
-                                : order.status === "ready"
+                                : order.statut === "prete"
                                   ? "bg-primary/20 text-primary"
-                                  : "bg-muted text-muted-foreground"
+                                  : order.statut === "annulee"
+                                    ? "bg-error/20 text-error"
+                                    : "bg-muted text-muted-foreground"
                           }`}
                         >
-                          {order.status === "completed"
-                            ? "Terminée"
-                            : order.status === "preparing"
+                          {order.statut === "livree"
+                            ? "Livrée"
+                            : order.statut === "en_preparation"
                               ? "En préparation"
-                              : order.status === "ready"
+                              : order.statut === "prete"
                                 ? "Prête"
-                                : "En attente"}
+                                : order.statut === "annulee"
+                                  ? "Annulée"
+                                  : "En attente"}
                         </span>
                       </div>
                       <div className="space-y-2 mb-4">
-                        {order.items.map((item, idx) => (
+                        {order.details && order.details.map((detail, idx) => (
                           <div key={idx} className="flex justify-between text-sm">
                             <span>
-                              {item.quantity}x {item.name}
+                              {detail.quantite}x {detail.article?.nom || 'Article'}
                             </span>
-                            <span className="font-semibold">{item.price * item.quantity} F</span>
+                            <span className="font-semibold">{detail.prix_unitaire * detail.quantite} FCFA</span>
                           </div>
                         ))}
                       </div>
-                      <div className="flex items-center justify-between pt-4 border-t border-border">
+                      
+                      {/* Détails des montants */}
+                      <div className="bg-muted rounded-lg p-3 mb-4 space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Montant total</span>
+                          <span className="font-semibold">{order.montant_total} FCFA</span>
+                        </div>
+                        {order.montant_remise > 0 && (
+                          <div className="flex justify-between text-success">
+                            <span>Remise ({order.points_utilises} points)</span>
+                            <span className="font-semibold">-{order.montant_remise} FCFA</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-base font-bold pt-2 border-t border-border">
+                          <span>Montant payé</span>
+                          <span className="text-primary">{order.montant_final} FCFA</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          {order.deliveryType === "delivery" ? (
+                          {order.type_livraison === "livraison" ? (
                             <>
                               <Truck className="w-4 h-4" />
                               Livraison
@@ -500,7 +705,12 @@ export default function StudentDashboard() {
                             </>
                           )}
                         </div>
-                        <p className="text-xl font-bold text-primary">{order.total} F</p>
+                        {order.points_utilises > 0 && (
+                          <div className="flex items-center gap-1 text-sm text-purple-600">
+                            <Award className="w-4 h-4" />
+                            <span>{order.points_utilises} points utilisés</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -652,28 +862,68 @@ export default function StudentDashboard() {
             {activeTab === "complaints" && (
               <div className="bg-white rounded-xl p-8 shadow-lg">
                 <h2 className="text-2xl font-bold mb-6">Réclamations</h2>
-                <form className="space-y-6">
+                
+                {complaintSuccess && (
+                  <div className="mb-6 bg-success/10 border border-success text-success rounded-lg p-4 flex items-start gap-3">
+                    <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Réclamation envoyée avec succès!</p>
+                      <p className="text-sm">Notre équipe va traiter votre demande dans les plus brefs délais.</p>
+                    </div>
+                  </div>
+                )}
+                
+                {complaintError && (
+                  <div className="mb-6 bg-error/10 border border-error text-error rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Erreur</p>
+                      <p className="text-sm">{complaintError}</p>
+                    </div>
+                  </div>
+                )}
+                
+                <form onSubmit={handleComplaintSubmit} className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium mb-2">Sujet</label>
                     <input
                       type="text"
-                      className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={complaintSubject}
+                      onChange={(e) => setComplaintSubject(e.target.value)}
+                      disabled={isSubmittingComplaint}
+                      className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Objet de votre réclamation"
+                      required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Message</label>
                     <textarea
                       rows={6}
-                      className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                      value={complaintMessage}
+                      onChange={(e) => setComplaintMessage(e.target.value)}
+                      disabled={isSubmittingComplaint}
+                      className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Décrivez votre problème en détail..."
+                      required
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                    disabled={isSubmittingComplaint}
+                    className="w-full bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Envoyer la réclamation
+                    {isSubmittingComplaint ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-5 h-5" />
+                        Envoyer la réclamation
+                      </>
+                    )}
                   </button>
                 </form>
               </div>
@@ -799,38 +1049,96 @@ export default function StudentDashboard() {
                     ))}
                   </div>
 
-                  {canUseDiscount && (
-                    <div className="bg-success/10 border border-success text-success rounded-lg p-3 mb-4 text-sm">
-                      <p className="font-semibold">Réduction disponible!</p>
-                      <p className="text-xs">Utilisez 15 points pour 1000F de réduction</p>
+                  {/* Utilisation des points de fidélité */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Award className="w-5 h-5 text-purple-600" />
+                        <span className="font-semibold text-purple-900">Points de fidélité</span>
+                      </div>
+                      <span className="text-sm text-purple-700">
+                        {user.loyaltyPoints} points disponibles
+                      </span>
                     </div>
-                  )}
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max={Math.min(user.loyaltyPoints, Math.floor(cartTotal / 100))}
+                          value={pointsToUse}
+                          onChange={(e) => setPointsToUse(Math.max(0, Math.min(parseInt(e.target.value) || 0, user.loyaltyPoints, Math.floor(cartTotal / 100))))}
+                          className="flex-1 px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="Points à utiliser"
+                        />
+                        <button
+                          onClick={() => setPointsToUse(Math.min(user.loyaltyPoints, Math.floor(cartTotal / 100)))}
+                          className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                        >
+                          Max
+                        </button>
+                      </div>
+                      <p className="text-xs text-purple-600">
+                        1 point = 100 FCFA • Remise: {pointsToUse * 100} FCFA
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="border-t border-border pt-4 mb-4">
                     <div className="flex justify-between mb-2">
                       <span className="text-muted-foreground">Sous-total</span>
-                      <span className="font-semibold">{cartTotal} F</span>
+                      <span className="font-semibold">{cartTotal} FCFA</span>
                     </div>
+                    {pointsToUse > 0 && (
+                      <div className="flex justify-between mb-2 text-success">
+                        <span>Remise ({pointsToUse} points)</span>
+                        <span className="font-semibold">-{pointsToUse * 100} FCFA</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-xl font-bold">
-                      <span>Total</span>
-                      <span className="text-primary">{cartTotal} F</span>
+                      <span>Total à payer</span>
+                      <span className="text-primary">{Math.max(0, cartTotal - (pointsToUse * 100))} FCFA</span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ⭐ Vous gagnerez {Math.floor(Math.max(0, cartTotal - (pointsToUse * 100)) / 1000)} points avec cette commande
+                    </p>
                   </div>
 
                   <div className="space-y-3">
                     <button
                       onClick={() => handleCheckout("pickup")}
-                      className="w-full bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+                      disabled={isCheckingOut}
+                      className="w-full bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      <Store className="w-5 h-5" />
-                      Commander sur place
+                      {isCheckingOut ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Traitement...
+                        </>
+                      ) : (
+                        <>
+                          <Store className="w-5 h-5" />
+                          Commander sur place
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => handleCheckout("delivery")}
-                      className="w-full bg-secondary text-white py-3 rounded-lg font-semibold hover:bg-secondary/90 transition-colors flex items-center justify-center gap-2"
+                      disabled={isCheckingOut}
+                      className="w-full bg-secondary text-white py-3 rounded-lg font-semibold hover:bg-secondary/90 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      <Truck className="w-5 h-5" />
-                      Commander en livraison
+                      {isCheckingOut ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Traitement...
+                        </>
+                      ) : (
+                        <>
+                          <Truck className="w-5 h-5" />
+                          Commander en livraison
+                        </>
+                      )}
                     </button>
                   </div>
                 </>

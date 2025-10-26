@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { mockOrders as initialOrders } from "../data/mockData"
-import { Clock, CheckCircle, Package, TrendingUp, Search, Plus, Edit, Trash2, Ban, X } from "lucide-react"
+import { Clock, CheckCircle, Package, TrendingUp, Search, Plus, Edit, Trash2, Ban, X, Loader2, MessageSquare, AlertCircle } from "lucide-react"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function EmployeeDashboard() {
   const [activeTab, setActiveTab] = useState("orders")
-  const [orders, setOrders] = useState(initialOrders)
+  const [orders, setOrders] = useState([])
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [filter, setFilter] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   
@@ -28,6 +28,15 @@ export default function EmployeeDashboard() {
     temps_preparation: '',
     image: ''
   })
+
+  // États pour les réclamations
+  const [reclamations, setReclamations] = useState([])
+  const [isLoadingReclamations, setIsLoadingReclamations] = useState(false)
+  const [reclamationFilter, setReclamationFilter] = useState('all')
+  const [searchReclamationTerm, setSearchReclamationTerm] = useState('')
+  const [showReclamationModal, setShowReclamationModal] = useState(false)
+  const [selectedReclamation, setSelectedReclamation] = useState(null)
+  const [resolutionComment, setResolutionComment] = useState('')
 
   // Fonctions Menu
   const fetchCategories = async () => {
@@ -243,41 +252,174 @@ export default function EmployeeDashboard() {
     setEditingMenuItem(null);
   };
 
+  // Fonctions Réclamations
+  const fetchReclamations = async () => {
+    setIsLoadingReclamations(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/staff/reclamations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setReclamations(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur réclamations:', error);
+    } finally {
+      setIsLoadingReclamations(false);
+    }
+  };
+
+  const handleUpdateReclamationStatus = async (reclamationId, newStatus) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/staff/reclamations/${reclamationId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          statut: newStatus,
+          commentaire_resolution: resolutionComment || null
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Statut de la réclamation mis à jour avec succès!');
+        setShowReclamationModal(false);
+        setSelectedReclamation(null);
+        setResolutionComment('');
+        fetchReclamations();
+      } else {
+        alert('❌ Erreur: ' + (data.message || 'Impossible de mettre à jour le statut'));
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors de la mise à jour du statut');
+    }
+  };
+
+  const handleViewReclamation = (reclamation) => {
+    setSelectedReclamation(reclamation);
+    setResolutionComment(reclamation.commentaire_resolution || '');
+    setShowReclamationModal(true);
+  };
+
+  // Fonction pour charger les commandes depuis le backend
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/staff/commandes', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setOrders(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur commandes:', error);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  // Fonction pour mettre à jour le statut d'une commande
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/staff/commandes/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ statut: newStatus })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Statut mis à jour avec succès!');
+        fetchOrders(); // Recharger les commandes
+      } else {
+        alert('❌ Erreur: ' + (data.message || 'Impossible de mettre à jour le statut'));
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors de la mise à jour du statut');
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "menu") {
       fetchCategories();
       fetchMenuItems();
     }
+    if (activeTab === "orders") {
+      fetchOrders();
+    }
+    if (activeTab === "complaints") {
+      fetchReclamations();
+    }
   }, [activeTab, selectedCategory, searchMenuTerm]);
 
-  const updateOrderStatus = (orderId, newStatus) => {
-    setOrders(orders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)))
-  }
-
   const filteredOrders = orders.filter((order) => {
-    const matchesFilter = filter === "all" || order.status === filter
+    const matchesFilter = filter === "all" || order.statut === filter
+    const userName = order.utilisateur ? `${order.utilisateur.prenom} ${order.utilisateur.nom}` : ''
     const matchesSearch =
-      order.userName.toLowerCase().includes(searchTerm.toLowerCase()) || order.id.includes(searchTerm)
+      userName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      order.id.toString().includes(searchTerm)
     return matchesFilter && matchesSearch
   })
 
+  const filteredReclamations = reclamations.filter((reclamation) => {
+    const matchesFilter = reclamationFilter === "all" || reclamation.statut === reclamationFilter
+    const userName = reclamation.utilisateur ? `${reclamation.utilisateur.prenom} ${reclamation.utilisateur.nom}` : ''
+    const matchesSearch =
+      userName.toLowerCase().includes(searchReclamationTerm.toLowerCase()) || 
+      reclamation.sujet?.toLowerCase().includes(searchReclamationTerm.toLowerCase()) ||
+      reclamation.id.toString().includes(searchReclamationTerm)
+    return matchesFilter && matchesSearch
+  })
+
+  const reclamationStats = {
+    ouverte: reclamations.filter((r) => r.statut === "ouverte").length,
+    en_cours: reclamations.filter((r) => r.statut === "en_cours").length,
+    resolue: reclamations.filter((r) => r.statut === "resolue").length,
+  }
+
   const stats = {
-    pending: orders.filter((o) => o.status === "pending").length,
-    preparing: orders.filter((o) => o.status === "preparing").length,
-    ready: orders.filter((o) => o.status === "ready").length,
-    completed: orders.filter((o) => o.status === "completed").length,
+    en_attente: orders.filter((o) => o.statut === "en_attente").length,
+    en_preparation: orders.filter((o) => o.statut === "en_preparation").length,
+    prete: orders.filter((o) => o.statut === "prete").length,
+    livree: orders.filter((o) => o.statut === "livree").length,
   }
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "pending":
+      case "en_attente":
         return "bg-muted text-muted-foreground"
-      case "preparing":
+      case "en_preparation":
         return "bg-warning/20 text-warning"
-      case "ready":
+      case "prete":
         return "bg-primary/20 text-primary"
-      case "completed":
+      case "livree":
         return "bg-success/20 text-success"
+      case "annulee":
+        return "bg-error/20 text-error"
       default:
         return "bg-muted text-muted-foreground"
     }
@@ -285,14 +427,16 @@ export default function EmployeeDashboard() {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case "pending":
+      case "en_attente":
         return "En attente"
-      case "preparing":
+      case "en_preparation":
         return "En préparation"
-      case "ready":
+      case "prete":
         return "Prête"
-      case "completed":
-        return "Terminée"
+      case "livree":
+        return "Livrée"
+      case "annulee":
+        return "Annulée"
       default:
         return status
     }
@@ -300,12 +444,12 @@ export default function EmployeeDashboard() {
 
   const getNextStatus = (currentStatus) => {
     switch (currentStatus) {
-      case "pending":
-        return "preparing"
-      case "preparing":
-        return "ready"
-      case "ready":
-        return "completed"
+      case "en_attente":
+        return "en_preparation"
+      case "en_preparation":
+        return "prete"
+      case "prete":
+        return "livree"
       default:
         return currentStatus
     }
@@ -313,14 +457,40 @@ export default function EmployeeDashboard() {
 
   const getNextStatusLabel = (currentStatus) => {
     switch (currentStatus) {
-      case "pending":
+      case "en_attente":
         return "Commencer"
-      case "preparing":
+      case "en_preparation":
         return "Marquer prête"
-      case "ready":
+      case "prete":
         return "Terminer"
       default:
         return null
+    }
+  }
+
+  const getReclamationStatusColor = (status) => {
+    switch (status) {
+      case "ouverte":
+        return "bg-error/20 text-error"
+      case "en_cours":
+        return "bg-warning/20 text-warning"
+      case "resolue":
+        return "bg-success/20 text-success"
+      default:
+        return "bg-muted text-muted-foreground"
+    }
+  }
+
+  const getReclamationStatusLabel = (status) => {
+    switch (status) {
+      case "ouverte":
+        return "Ouverte"
+      case "en_cours":
+        return "En cours"
+      case "resolue":
+        return "Résolue"
+      default:
+        return status
     }
   }
 
@@ -341,6 +511,14 @@ export default function EmployeeDashboard() {
             }`}
           >
             Commandes
+          </button>
+          <button
+            onClick={() => setActiveTab("complaints")}
+            className={`px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+              activeTab === "complaints" ? "bg-primary text-secondary" : "bg-white text-foreground hover:bg-white/80"
+            }`}
+          >
+            Réclamations
           </button>
           <button
             onClick={() => setActiveTab("menu")}
@@ -365,7 +543,7 @@ export default function EmployeeDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">En attente</p>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
+                  <p className="text-2xl font-bold">{stats.en_attente}</p>
                 </div>
               </div>
             </div>
@@ -379,7 +557,7 @@ export default function EmployeeDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">En préparation</p>
-                  <p className="text-2xl font-bold">{stats.preparing}</p>
+                  <p className="text-2xl font-bold">{stats.en_preparation}</p>
                 </div>
               </div>
             </div>
@@ -393,7 +571,7 @@ export default function EmployeeDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Prêtes</p>
-                  <p className="text-2xl font-bold">{stats.ready}</p>
+                  <p className="text-2xl font-bold">{stats.prete}</p>
                 </div>
               </div>
             </div>
@@ -406,8 +584,8 @@ export default function EmployeeDashboard() {
                   <TrendingUp className="w-6 h-6 text-success" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Terminées</p>
-                  <p className="text-2xl font-bold">{stats.completed}</p>
+                  <p className="text-sm text-muted-foreground">Livrées</p>
+                  <p className="text-2xl font-bold">{stats.livree}</p>
                 </div>
               </div>
             </div>
@@ -430,10 +608,10 @@ export default function EmployeeDashboard() {
             <div className="flex gap-2 overflow-x-auto">
               {[
                 { value: "all", label: "Toutes" },
-                { value: "pending", label: "En attente" },
-                { value: "preparing", label: "En préparation" },
-                { value: "ready", label: "Prêtes" },
-                { value: "completed", label: "Terminées" },
+                { value: "en_attente", label: "En attente" },
+                { value: "en_preparation", label: "En préparation" },
+                { value: "prete", label: "Prêtes" },
+                { value: "livree", label: "Livrées" },
               ].map(({ value, label }) => (
                 <button
                   key={value}
@@ -451,7 +629,12 @@ export default function EmployeeDashboard() {
 
         {/* Orders List */}
         <div className="space-y-4">
-          {filteredOrders.length === 0 ? (
+          {isLoadingOrders ? (
+            <div className="bg-white rounded-xl p-12 text-center shadow-lg">
+              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Chargement des commandes...</p>
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <div className="bg-white rounded-xl p-12 text-center shadow-lg">
               <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">Aucune commande trouvée</p>
@@ -462,14 +645,16 @@ export default function EmployeeDashboard() {
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold">Commande #{order.id.slice(-6)}</h3>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
-                        {getStatusLabel(order.status)}
+                      <h3 className="text-xl font-bold">Commande #{order.id}</h3>
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(order.statut)}`}>
+                        {getStatusLabel(order.statut)}
                       </span>
                     </div>
-                    <p className="text-muted-foreground mb-1">Client: {order.userName}</p>
+                    <p className="text-muted-foreground mb-1">
+                      Client: {order.utilisateur?.prenom} {order.utilisateur?.nom}
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString("fr-FR", {
+                      {new Date(order.date_commande).toLocaleDateString("fr-FR", {
                         day: "numeric",
                         month: "long",
                         hour: "2-digit",
@@ -481,9 +666,11 @@ export default function EmployeeDashboard() {
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground mb-1">
-                        {order.deliveryType === "delivery" ? "Livraison" : "Sur place"}
+                        {order.type_livraison === "livraison" ? "Livraison" : "Sur place"}
                       </p>
-                      <p className="text-2xl font-bold text-primary">{order.total} F</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {order.montant_final || order.montant_total} FCFA
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -491,28 +678,28 @@ export default function EmployeeDashboard() {
                 <div className="bg-muted rounded-lg p-4 mb-4">
                   <p className="text-sm font-semibold mb-3">Articles commandés:</p>
                   <div className="space-y-2">
-                    {order.items.map((item, idx) => (
+                    {order.details && order.details.map((detail, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
-                          <span className="font-semibold text-foreground">{item.quantity}x</span> {item.name}
+                          <span className="font-semibold text-foreground">{detail.quantite}x</span> {detail.article?.nom || 'Article'}
                         </span>
-                        <span className="font-semibold">{item.price * item.quantity} F</span>
+                        <span className="font-semibold">{detail.prix_unitaire * detail.quantite} FCFA</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {order.status !== "completed" && (
+                {order.statut !== "livree" && order.statut !== "annulee" && (
                   <div className="flex gap-3">
                     <button
-                      onClick={() => updateOrderStatus(order.id, getNextStatus(order.status))}
+                      onClick={() => updateOrderStatus(order.id, getNextStatus(order.statut))}
                       className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
                     >
-                      {getNextStatusLabel(order.status)}
+                      {getNextStatusLabel(order.statut)}
                     </button>
-                    {order.status === "pending" && (
+                    {order.statut === "en_attente" && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, "completed")}
+                        onClick={() => updateOrderStatus(order.id, "annulee")}
                         className="px-6 py-3 border border-error text-error rounded-lg font-semibold hover:bg-error/10 transition-colors"
                       >
                         Annuler
@@ -657,6 +844,276 @@ export default function EmployeeDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Complaints Tab */}
+        {activeTab === "complaints" && (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <FadeInOnScroll delay={0}>
+                <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 bg-error/20 rounded-full flex items-center justify-center">
+                      <AlertCircle className="w-6 h-6 text-error" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Ouvertes</p>
+                      <p className="text-2xl font-bold">{reclamationStats.ouverte}</p>
+                    </div>
+                  </div>
+                </div>
+              </FadeInOnScroll>
+
+              <FadeInOnScroll delay={150}>
+                <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">En cours</p>
+                      <p className="text-2xl font-bold">{reclamationStats.en_cours}</p>
+                    </div>
+                  </div>
+                </div>
+              </FadeInOnScroll>
+
+              <FadeInOnScroll delay={300}>
+                <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Résolues</p>
+                      <p className="text-2xl font-bold">{reclamationStats.resolue}</p>
+                    </div>
+                  </div>
+                </div>
+              </FadeInOnScroll>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-xl p-6 shadow-lg mb-8">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={searchReclamationTerm}
+                    onChange={(e) => setSearchReclamationTerm(e.target.value)}
+                    placeholder="Rechercher par client, sujet ou numéro..."
+                    className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex gap-2 overflow-x-auto">
+                  {[
+                    { value: "all", label: "Toutes" },
+                    { value: "ouverte", label: "Ouvertes" },
+                    { value: "en_cours", label: "En cours" },
+                    { value: "resolue", label: "Résolues" },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setReclamationFilter(value)}
+                      className={`px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+                        reclamationFilter === value ? "bg-primary text-secondary" : "bg-muted text-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Reclamations List */}
+            <div className="space-y-4">
+              {isLoadingReclamations ? (
+                <div className="bg-white rounded-xl p-12 text-center shadow-lg">
+                  <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">Chargement des réclamations...</p>
+                </div>
+              ) : filteredReclamations.length === 0 ? (
+                <div className="bg-white rounded-xl p-12 text-center shadow-lg">
+                  <MessageSquare className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Aucune réclamation trouvée</p>
+                </div>
+              ) : (
+                filteredReclamations.map((reclamation) => (
+                  <div key={reclamation.id} className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-bold">Réclamation #{reclamation.id}</h3>
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getReclamationStatusColor(reclamation.statut)}`}>
+                            {getReclamationStatusLabel(reclamation.statut)}
+                          </span>
+                        </div>
+                        <p className="text-lg font-semibold text-primary mb-2">{reclamation.sujet}</p>
+                        <p className="text-muted-foreground mb-1">
+                          Client: {reclamation.utilisateur?.prenom} {reclamation.utilisateur?.nom}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(reclamation.date_ouverture).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        {reclamation.commande && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Commande associée: #{reclamation.commande.id}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-muted rounded-lg p-4 mb-4">
+                      <p className="text-sm font-semibold mb-2">Description:</p>
+                      <p className="text-sm text-muted-foreground">{reclamation.description}</p>
+                    </div>
+
+                    {reclamation.commentaire_resolution && (
+                      <div className="bg-success/10 rounded-lg p-4 mb-4">
+                        <p className="text-sm font-semibold mb-2 text-success">Résolution:</p>
+                        <p className="text-sm text-muted-foreground">{reclamation.commentaire_resolution}</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleViewReclamation(reclamation)}
+                        className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                      >
+                        Traiter
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Reclamation Modal */}
+        {showReclamationModal && selectedReclamation && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setShowReclamationModal(false);
+              setSelectedReclamation(null);
+              setResolutionComment('');
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl sm:text-2xl font-bold">Réclamation #{selectedReclamation.id}</h3>
+                <button
+                  onClick={() => {
+                    setShowReclamationModal(false);
+                    setSelectedReclamation(null);
+                    setResolutionComment('');
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-1">Statut actuel</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getReclamationStatusColor(selectedReclamation.statut)}`}>
+                    {getReclamationStatusLabel(selectedReclamation.statut)}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-1">Sujet</p>
+                  <p className="text-lg font-semibold">{selectedReclamation.sujet}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-1">Client</p>
+                  <p>{selectedReclamation.utilisateur?.prenom} {selectedReclamation.utilisateur?.nom}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-1">Date d'ouverture</p>
+                  <p>{new Date(selectedReclamation.date_ouverture).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}</p>
+                </div>
+
+                {selectedReclamation.commande && (
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground mb-1">Commande associée</p>
+                    <p>#{selectedReclamation.commande.id}</p>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-2">Description</p>
+                  <div className="bg-muted rounded-lg p-4">
+                    <p className="text-sm">{selectedReclamation.description}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-muted-foreground mb-2">
+                    Commentaire de résolution
+                  </label>
+                  <textarea
+                    value={resolutionComment}
+                    onChange={(e) => setResolutionComment(e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    placeholder="Ajoutez un commentaire de résolution..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                {selectedReclamation.statut === "ouverte" && (
+                  <button
+                    onClick={() => handleUpdateReclamationStatus(selectedReclamation.id, "en_cours")}
+                    className="flex-1 bg-warning text-white py-3 rounded-lg font-semibold hover:bg-warning/80 transition-colors"
+                  >
+                    Prendre en charge
+                  </button>
+                )}
+                {(selectedReclamation.statut === "ouverte" || selectedReclamation.statut === "en_cours") && (
+                  <button
+                    onClick={() => handleUpdateReclamationStatus(selectedReclamation.id, "resolue")}
+                    className="flex-1 bg-success text-white py-3 rounded-lg font-semibold hover:bg-success/80 transition-colors"
+                  >
+                    Marquer comme résolue
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowReclamationModal(false);
+                    setSelectedReclamation(null);
+                    setResolutionComment('');
+                  }}
+                  className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

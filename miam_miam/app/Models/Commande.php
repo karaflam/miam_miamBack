@@ -47,7 +47,13 @@ class Commande extends Model
 
     public function detailsCommandes(): HasMany
     {
-        return $this->hasMany(DetailCommande::class, 'id_commande');
+        return $this->hasMany(DetailCommande::class, 'id_commande', 'id_commande');
+    }
+
+    // Alias pour la relation details (utilisé par CommandeResource et les controllers)
+    public function details(): HasMany
+    {
+        return $this->hasMany(DetailCommande::class, 'id_commande', 'id_commande');
     }
 
     public function paiements(): HasMany

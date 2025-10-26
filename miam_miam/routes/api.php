@@ -70,10 +70,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Debug (à retirer en production)
     Route::get('/debug/whoami', [App\Http\Controllers\Api\DebugController::class, 'whoami']);
     
-    // Commandes
+    // Commandes (utilisateurs)
     Route::post('/commandes', [CommandeController::class, 'store']);
     Route::get('/commandes/mes-commandes', [CommandeController::class, 'index']);
     Route::get('/commandes/{id}', [CommandeController::class, 'show']);
+    
+    // Commandes (staff uniquement)
+    Route::middleware('role:admin,employe,manager')->prefix('staff/commandes')->group(function () {
+        Route::get('/', [CommandeController::class, 'all']);
+        Route::put('/{id}/status', [CommandeController::class, 'updateStatus']);
+    });
     
     // Réclamations (utilisateurs)
     Route::post('/reclamations', [ReclamationController::class, 'store']);
@@ -91,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Paiements
     Route::post('/paiement/initier', [PaiementController::class, 'initier']);
     Route::get('/paiement/verifier/{transactionId}', [PaiementController::class, 'verifier']);
+    Route::post('/paiement/recharger', [PaiementController::class, 'recharger']);
     
     // Menu admin
     Route::middleware('role:admin,employe,manager')->group(function () {

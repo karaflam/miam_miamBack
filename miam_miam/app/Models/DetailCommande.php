@@ -31,11 +31,17 @@ class DetailCommande extends Model
      */
     public function commande(): BelongsTo
     {
-        return $this->belongsTo(Commande::class, 'id_commande');
+        return $this->belongsTo(Commande::class, 'id_commande', 'id_commande');
     }
 
+    public function article(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class, 'id_article', 'id_article');
+    }
+
+    // Alias pour compatibilité
     public function menu(): BelongsTo
     {
-        return $this->belongsTo(Menu::class, 'id_article');
+        return $this->belongsTo(Menu::class, 'id_article', 'id_article');
     }
 }

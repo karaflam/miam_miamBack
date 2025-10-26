@@ -29,7 +29,19 @@ export default function ManagerDashboard() {
     temps_preparation: '',
     image: ''
   })
-  const [orders, setOrders] = useState(initialOrders)
+  
+  // États pour la gestion du stock
+  const [stockItems, setStockItems] = useState([]);
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [editingStock, setEditingStock] = useState(null);
+  const [stockFormData, setStockFormData] = useState({
+    quantite_disponible: '',
+    seuil_alerte: '5'
+  });
+  
+  const [orders, setOrders] = useState([])
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [promotions, setPromotions] = useState(initialPromotions)
   const [showPromoModal, setShowPromoModal] = useState(false)
   const [editingPromo, setEditingPromo] = useState(null)
@@ -57,24 +69,8 @@ export default function ManagerDashboard() {
     endDate: "",
   })
   const [employees, setEmployees] = useState([])
-  const [complaints, setComplaints] = useState([
-    {
-      id: "1",
-      orderId: "2847",
-      customerName: "Julie Martin",
-      message: "Sandwich froid et frites molles",
-      status: "urgent",
-      time: "Il y a 15 min"
-    },
-    {
-      id: "2",
-      orderId: "2845",
-      customerName: "Pierre Durand",
-      message: "Temps d'attente trop long",
-      status: "pending",
-      time: "Il y a 1h"
-    }
-  ])
+  const [complaints, setComplaints] = useState([])
+  const [isLoadingComplaints, setIsLoadingComplaints] = useState(false)
   
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
@@ -219,11 +215,7 @@ export default function ManagerDashboard() {
     setMenuItems(menuItems.map((item) => (item.id === itemId ? { ...item, available: !item.available } : item)))
   }
 
-  const updateOrderStatus = (orderId, newStatus) => {
-    setOrders(orders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ))
-  }
+  // Fonction updateOrderStatus déplacée plus bas avec intégration backend
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -506,6 +498,212 @@ export default function ManagerDashboard() {
     setEditingMenuItem(null);
   };
 
+  // Fonctions pour la gestion du stock
+  const fetchStockItems = async () => {
+    setIsLoadingStock(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/menu?show_all=true', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setStockItems(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur stock:', error);
+    } finally {
+      setIsLoadingStock(false);
+    }
+  };
+
+  const handleUpdateStock = async () => {
+    if (!editingStock) return;
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/stock/${editingStock.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          quantite_disponible: parseInt(stockFormData.quantite_disponible),
+          seuil_alerte: parseInt(stockFormData.seuil_alerte)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible de mettre à jour le stock'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Stock mis à jour avec succès!');
+      setShowStockModal(false);
+      resetStockForm();
+      fetchStockItems();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la mise à jour du stock');
+    }
+  };
+
+  const handleAdjustStock = async (articleId, ajustement, raison = '') => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/stock/${articleId}/adjust`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ajustement, raison })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Erreur: ' + (errorData.message || 'Impossible d\'ajuster le stock'));
+        return;
+      }
+
+      const data = await response.json();
+      alert(data.message || 'Stock ajusté avec succès!');
+      fetchStockItems();
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de l\'ajustement du stock');
+    }
+  };
+
+  const openEditStockModal = (item) => {
+    setEditingStock(item);
+    setStockFormData({
+      quantite_disponible: item.stock?.quantite_disponible?.toString() || '0',
+      seuil_alerte: item.stock?.seuil_alerte?.toString() || '5'
+    });
+    setShowStockModal(true);
+  };
+
+  const resetStockForm = () => {
+    setStockFormData({
+      quantite_disponible: '',
+      seuil_alerte: '5'
+    });
+    setEditingStock(null);
+  };
+
+  // Fonctions pour récupérer les commandes
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/staff/commandes', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setOrders(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur commandes:', error);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  // Fonctions pour récupérer les réclamations
+  const fetchComplaints = async () => {
+    setIsLoadingComplaints(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/staff/reclamations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setComplaints(data.data);
+      }
+    } catch (error) {
+      console.error('Erreur réclamations:', error);
+    } finally {
+      setIsLoadingComplaints(false);
+    }
+  };
+
+  // Mettre à jour le statut d'une commande
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/staff/commandes/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ statut: newStatus })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Statut mis à jour avec succès!');
+        fetchOrders(); // Recharger les commandes
+      } else {
+        alert('Erreur: ' + (data.message || 'Impossible de mettre à jour le statut'));
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la mise à jour du statut');
+    }
+  };
+
+  // Mettre à jour le statut d'une réclamation
+  const updateComplaintStatus = async (complaintId, newStatus, commentaire = '') => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/staff/reclamations/${complaintId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          statut: newStatus,
+          commentaire_resolution: commentaire 
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Statut mis à jour avec succès!');
+        fetchComplaints(); // Recharger les réclamations
+      } else {
+        alert('Erreur: ' + (data.message || 'Impossible de mettre à jour le statut'));
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la mise à jour du statut');
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "menu") {
       fetchCategories();
@@ -513,6 +711,15 @@ export default function ManagerDashboard() {
     }
     if (activeTab === "employees") {
       fetchUsers();
+    }
+    if (activeTab === "stock") {
+      fetchStockItems();
+    }
+    if (activeTab === "orders") {
+      fetchOrders();
+    }
+    if (activeTab === "complaints") {
+      fetchComplaints();
     }
   }, [activeTab, selectedCategory, searchMenuTerm, roleFilter, searchTerm]);
 
@@ -831,12 +1038,19 @@ export default function ManagerDashboard() {
 
   const getStatusColor = (status) => {
     switch(status) {
+      case "livree":
       case "completed":
         return "bg-green-500/20 text-green-700"
+      case "prete":
+        return "bg-blue-500/20 text-blue-700"
+      case "en_preparation":
       case "preparing":
         return "bg-yellow-500/20 text-yellow-700"
+      case "en_attente":
       case "pending":
-        return "bg-blue-500/20 text-blue-700"
+        return "bg-orange-500/20 text-orange-700"
+      case "annulee":
+        return "bg-red-500/20 text-red-700"
       default:
         return "bg-gray-500/20 text-gray-700"
     }
@@ -844,12 +1058,19 @@ export default function ManagerDashboard() {
 
   const getStatusLabel = (status) => {
     switch(status) {
+      case "livree":
       case "completed":
-        return "Terminée"
+        return "Livrée"
+      case "prete":
+        return "Prête"
+      case "en_preparation":
       case "preparing":
         return "En préparation"
+      case "en_attente":
       case "pending":
         return "En attente"
+      case "annulee":
+        return "Annulée"
       default:
         return status
     }
@@ -891,8 +1112,9 @@ export default function ManagerDashboard() {
             {[
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
               { id: "orders", label: "Commandes", icon: ShoppingBag, badge: activeOrders },
-              { id: "menu", label: "Menu", icon: Package },
-              { id: "promotions", label: "Promotions", icon: Tag, badge: promotions.filter(p => p.active).length },
+              { id: "menu", label: "Menu", icon: Tag },
+              { id: "stock", label: "Stock", icon: Package },
+              { id: "promotions", label: "Promotions", icon: Gift, badge: promotions.filter(p => p.active).length },
               { id: "employees", label: "Employés", icon: Users, badge: employees.length },
               { id: "complaints", label: "Réclamations", icon: MessageSquare, badge: urgentComplaints },
               { id: "statistics", label: "Statistiques", icon: TrendingUp },
@@ -1193,65 +1415,91 @@ export default function ManagerDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              {recentOrders.map((order) => (
-                <div 
-                  key={order.id} 
-                  className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                  onClick={() => setSelectedOrder(order)}
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold">#{order.id.slice(-6)}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
+            {isLoadingOrders ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#cfbd97] mx-auto"></div>
+                <p className="mt-4 text-gray-600">Chargement des commandes...</p>
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">Aucune commande pour le moment</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {orders.map((order) => (
+                  <div 
+                    key={order.id} 
+                    className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                    onClick={() => setSelectedOrder(order)}
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-bold">#{order.id}</h3>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.statut)}`}>
+                            {getStatusLabel(order.statut)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {order.utilisateur?.prenom} {order.utilisateur?.nom}
+                        </p>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Clock className="w-4 h-4" />
+                          <span>
+                            {new Date(order.date_commande).toLocaleDateString("fr-FR", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{order.userName}</p>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Clock className="w-4 h-4" />
-                        <span>
-                          {new Date(order.createdAt).toLocaleDateString("fr-FR", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <p className="text-2xl font-bold text-[#cfbd97]">{order.total.toLocaleString()} F</p>
-                      <div className="flex gap-2">
-                        {order.status === "pending" && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              updateOrderStatus(order.id, "preparing")
-                            }}
-                            className="px-3 py-1 bg-yellow-500 text-white rounded-lg text-sm font-semibold hover:bg-yellow-600"
-                          >
-                            Préparer
-                          </button>
-                        )}
-                        {order.status === "preparing" && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              updateOrderStatus(order.id, "completed")
-                            }}
-                            className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600"
-                          >
-                            Terminer
-                          </button>
-                        )}
+                      <div className="flex flex-col items-end gap-2">
+                        <p className="text-2xl font-bold text-[#cfbd97]">
+                          {(order.montant_final || order.montant_total || 0).toLocaleString()} FCFA
+                        </p>
+                        <div className="flex gap-2">
+                          {order.statut === "en_attente" && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                updateOrderStatus(order.id, "en_preparation")
+                              }}
+                              className="px-3 py-1 bg-yellow-500 text-white rounded-lg text-sm font-semibold hover:bg-yellow-600"
+                            >
+                              Préparer
+                            </button>
+                          )}
+                          {order.statut === "en_preparation" && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                updateOrderStatus(order.id, "prete")
+                              }}
+                              className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600"
+                            >
+                              Prête
+                            </button>
+                          )}
+                          {order.statut === "prete" && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                updateOrderStatus(order.id, "livree")
+                              }}
+                              className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600"
+                            >
+                              Livrée
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1385,6 +1633,232 @@ export default function ManagerDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Stock Tab */}
+        {activeTab === "stock" && (
+          <div className="mt-4 lg:mt-0">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Gestion du Stock</h2>
+            </div>
+
+            {isLoadingStock ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-4 text-muted-foreground">Chargement du stock...</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Statistiques du stock */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">Total Articles</p>
+                        <p className="text-2xl font-bold">{stockItems.length}</p>
+                      </div>
+                      <Package className="w-8 h-8 text-blue-500" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">En Rupture</p>
+                        <p className="text-2xl font-bold text-red-600">
+                          {stockItems.filter(item => item.stock?.en_rupture).length}
+                        </p>
+                      </div>
+                      <Ban className="w-8 h-8 text-red-500" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">Alerte Stock</p>
+                        <p className="text-2xl font-bold text-yellow-600">
+                          {stockItems.filter(item => item.stock?.alerte_stock).length}
+                        </p>
+                      </div>
+                      <Bell className="w-8 h-8 text-yellow-500" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">Disponibles</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {stockItems.filter(item => item.disponible && !item.stock?.en_rupture).length}
+                        </p>
+                      </div>
+                      <CheckCircle className="w-8 h-8 text-green-500" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tableau du stock */}
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Article</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Catégorie</th>
+                          <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Quantité</th>
+                          <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Seuil d'alerte</th>
+                          <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Statut</th>
+                          <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {stockItems.map((item) => (
+                          <tr key={item.id} className="hover:bg-muted/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden">
+                                  {item.image && (
+                                    <img src={item.image} alt={item.nom} className="w-full h-full object-cover" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-semibold">{item.nom}</p>
+                                  <p className="text-sm text-gray-500">{item.prix} FCFA</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {item.categorie?.nom || 'Sans catégorie'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`text-lg font-bold ${
+                                item.stock?.en_rupture ? 'text-red-600' :
+                                item.stock?.alerte_stock ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {item.stock?.quantite_disponible ?? 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="text-gray-600">
+                                {item.stock?.seuil_alerte ?? 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {item.stock?.en_rupture ? (
+                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  Rupture
+                                </span>
+                              ) : item.stock?.alerte_stock ? (
+                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  Alerte
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  OK
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => openEditStockModal(item)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                                  title="Modifier le stock"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const quantite = prompt('Quantité à ajouter (nombre positif) ou retirer (nombre négatif):');
+                                    if (quantite !== null && quantite !== '') {
+                                      const ajustement = parseInt(quantite);
+                                      if (!isNaN(ajustement)) {
+                                        const raison = prompt('Raison de l\'ajustement (optionnel):');
+                                        handleAdjustStock(item.id, ajustement, raison || '');
+                                      }
+                                    }
+                                  }}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                                  title="Ajuster le stock"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {stockItems.length === 0 && (
+                    <div className="text-center py-12">
+                      <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500">Aucun article trouvé</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal de modification du stock */}
+        {showStockModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-6">
+                  Modifier le stock - {editingStock?.nom}
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Quantité disponible</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={stockFormData.quantite_disponible}
+                      onChange={(e) => setStockFormData({...stockFormData, quantite_disponible: e.target.value})}
+                      className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="Ex: 50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Seuil d'alerte</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={stockFormData.seuil_alerte}
+                      onChange={(e) => setStockFormData({...stockFormData, seuil_alerte: e.target.value})}
+                      className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="Ex: 10"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Une alerte sera déclenchée quand la quantité atteint ce seuil
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowStockModal(false);
+                      resetStockForm();
+                    }}
+                    className="flex-1 px-6 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleUpdateStock}
+                    className="flex-1 bg-primary text-secondary px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                  >
+                    Enregistrer
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

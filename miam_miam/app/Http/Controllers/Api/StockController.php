@@ -41,6 +41,16 @@ class StockController extends Controller
             ]
         );
 
+        // Mettre à jour automatiquement la disponibilité de l'article
+        if ($stock->quantite_disponible <= 0) {
+            $article->disponible = false;
+            $article->save();
+        } else if ($stock->quantite_disponible > 0 && !$article->disponible) {
+            // Réactiver l'article si le stock est reconstitué
+            $article->disponible = true;
+            $article->save();
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Stock mis à jour avec succès',
@@ -50,7 +60,8 @@ class StockController extends Controller
                 'quantite_disponible' => $stock->quantite_disponible,
                 'seuil_alerte' => $stock->seuil_alerte,
                 'en_rupture' => $stock->quantite_disponible <= 0,
-                'alerte_stock' => $stock->quantite_disponible <= $stock->seuil_alerte && $stock->quantite_disponible > 0
+                'alerte_stock' => $stock->quantite_disponible <= $stock->seuil_alerte && $stock->quantite_disponible > 0,
+                'article_disponible' => $article->disponible
             ]
         ]);
     }
@@ -97,6 +108,16 @@ class StockController extends Controller
         $stock->date_mise_a_jour = now();
         $stock->save();
 
+        // Mettre à jour automatiquement la disponibilité de l'article
+        if ($stock->quantite_disponible <= 0) {
+            $article->disponible = false;
+            $article->save();
+        } else if ($stock->quantite_disponible > 0 && !$article->disponible) {
+            // Réactiver l'article si le stock est reconstitué
+            $article->disponible = true;
+            $article->save();
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Stock ajusté avec succès',
@@ -107,9 +128,65 @@ class StockController extends Controller
                 'ajustement' => $request->ajustement,
                 'raison' => $request->raison,
                 'en_rupture' => $stock->quantite_disponible <= 0,
-                'alerte_stock' => $stock->quantite_disponible <= $stock->seuil_alerte && $stock->quantite_disponible > 0
+                'alerte_stock' => $stock->quantite_disponible <= $stock->seuil_alerte && $stock->quantite_disponible > 0,
+                'article_disponible' => $article->disponible
             ]
         ]);
+    }
+
+    /**
+     * Décrémenter le stock lors d'une commande
+     * Cette méthode est appelée automatiquement lors de la validation d'une commande
+     */
+    public function decrementStock($id_article, $quantite)
+    {
+        $article = Menu::find($id_article);
+        
+        if (!$article) {
+            return [
+                'success' => false,
+                'message' => 'Article non trouvé'
+            ];
+        }
+
+        $stock = Stock::where('id_article', $id_article)->first();
+        
+        if (!$stock) {
+            // Si le stock n'existe pas, créer un stock avec quantité 0
+            $stock = Stock::create([
+                'id_article' => $id_article,
+                'quantite_disponible' => 0,
+                'seuil_alerte' => 5,
+                'date_mise_a_jour' => now()
+            ]);
+        }
+
+        $nouvelle_quantite = $stock->quantite_disponible - $quantite;
+        
+        if ($nouvelle_quantite < 0) {
+            return [
+                'success' => false,
+                'message' => 'Stock insuffisant pour ' . $article->nom
+            ];
+        }
+
+        $stock->quantite_disponible = $nouvelle_quantite;
+        $stock->date_mise_a_jour = now();
+        $stock->save();
+
+        // Mettre à jour automatiquement la disponibilité de l'article
+        if ($stock->quantite_disponible <= 0) {
+            $article->disponible = false;
+            $article->save();
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Stock décrémenté avec succès',
+            'quantite_restante' => $stock->quantite_disponible,
+            'en_rupture' => $stock->quantite_disponible <= 0,
+            'alerte_stock' => $stock->quantite_disponible <= $stock->seuil_alerte && $stock->quantite_disponible > 0
+        ];
     }
 
     /**

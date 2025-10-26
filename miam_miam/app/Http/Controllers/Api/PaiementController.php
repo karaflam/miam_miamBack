@@ -129,4 +129,38 @@ class PaiementController extends Controller
             ], 500);
         }
     }
+
+    public function recharger(Request $request)
+    {
+        $request->validate([
+            'montant' => 'required|numeric|min:100|max:1000000',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $montant = $request->montant;
+
+            // Incrémenter le solde
+            $user->solde += $montant;
+            $user->save();
+
+            Log::info("Recharge de {$montant} FCFA pour l'utilisateur {$user->id_utilisateur}");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Recharge effectuée avec succès',
+                'data' => [
+                    'nouveau_solde' => $user->solde,
+                    'montant_recharge' => $montant,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur recharge: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Erreur lors de la recharge'
+            ], 500);
+        }
+    }
 }

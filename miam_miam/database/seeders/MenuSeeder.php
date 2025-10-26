@@ -70,6 +70,15 @@ class MenuSeeder extends Seeder
                 'id_categorie' => $categoriePlats->id_categorie,
             ],
             [
+                'nom_article' => 'Koki',
+                'description' => 'Gâteau de haricots traditionnel camerounais cuit à la vapeur dans des feuilles de bananier. Riche en protéines et délicieusement parfumé.',
+                'prix' => 800,
+                'disponible' => 'oui',
+                'temps_preparation' => 60,
+                'url_image' => 'https://cuisinedecheznous.net/wp-content/uploads/2021/04/168088864_116618263855792_4615947029067243492_n.jpg',
+                'id_categorie' => $categoriePlats->id_categorie,
+            ],
+            [
                 'nom_article' => 'Jus d\'Orange',
                 'description' => 'Jus d\'orange frais pressé, naturel et vitaminé. Parfait pour accompagner votre repas ou pour une pause rafraîchissante.',
                 'prix' => 500,
@@ -113,6 +122,7 @@ class MenuSeeder extends Seeder
         $this->command->info('- Eru (1000 FCFA)');
         $this->command->info('- Okok (1000 FCFA)');
         $this->command->info('- Poulet DG (2000 FCFA)');
+        $this->command->info('- Koki (800 FCFA)');
         $this->command->info('');
         $this->command->info('=== BOISSONS ===');
         $this->command->info('- Jus d\'Orange (500 FCFA)');

@@ -72,6 +72,19 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const refreshUser = async () => {
+    try {
+      const result = await authService.getCurrentUser()
+      if (result.success) {
+        setUser(result.user)
+        return { success: true }
+      }
+      return { success: false }
+    } catch (error) {
+      return { success: false }
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -82,6 +95,7 @@ export function AuthProvider({ children }) {
         logout,
         updateBalance,
         updateLoyaltyPoints,
+        refreshUser,
       }}
     >
       {children}
