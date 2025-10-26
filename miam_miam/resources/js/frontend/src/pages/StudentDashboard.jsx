@@ -50,11 +50,13 @@ export default function StudentDashboard() {
   const [activeGame, setActiveGame] = useState(null) // null, 'blackjack', 'quiz'
   
   // États pour les réclamations
-  const [complaintSubject, setComplaintSubject] = useState("")
-  const [complaintMessage, setComplaintMessage] = useState("")
-  const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false)
-  const [complaintSuccess, setComplaintSuccess] = useState(false)
-  const [complaintError, setComplaintError] = useState(null)
+  const [reclamations, setReclamations] = useState([])
+  const [isLoadingReclamations, setIsLoadingReclamations] = useState(false)
+  const [showReclamationModal, setShowReclamationModal] = useState(false)
+  const [selectedCommandeForReclamation, setSelectedCommandeForReclamation] = useState(null)
+  const [reclamationSubject, setReclamationSubject] = useState("")
+  const [reclamationDescription, setReclamationDescription] = useState("")
+  const [isSubmittingReclamation, setIsSubmittingReclamation] = useState(false)
   
   // États pour le checkout
   const [isCheckingOut, setIsCheckingOut] = useState(false)
@@ -147,6 +149,9 @@ export default function StudentDashboard() {
     }
     if (activeTab === "history") {
       fetchOrders();
+    }
+    if (activeTab === "reclamations") {
+      fetchReclamations();
     }
   }, [activeTab, selectedCategory, searchMenuTerm]);
 
@@ -367,6 +372,103 @@ export default function StudentDashboard() {
     setActiveGame(null)
   }
 
+  // Fonctions pour les réclamations
+  const fetchReclamations = async () => {
+    setIsLoadingReclamations(true)
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch('http://localhost:8000/api/reclamations/mes-reclamations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setReclamations(data.data)
+      }
+    } catch (error) {
+      console.error('Erreur chargement réclamations:', error)
+    } finally {
+      setIsLoadingReclamations(false)
+    }
+  }
+
+  const openReclamationModal = (commande) => {
+    setSelectedCommandeForReclamation(commande)
+    setReclamationSubject("")
+    setReclamationDescription("")
+    setShowReclamationModal(true)
+  }
+
+  const handleSubmitReclamation = async () => {
+    if (!reclamationSubject.trim() || !reclamationDescription.trim()) {
+      alert('Veuillez remplir tous les champs')
+      return
+    }
+
+    setIsSubmittingReclamation(true)
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch('http://localhost:8000/api/reclamations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id_commande: selectedCommandeForReclamation?.id_commande,
+          sujet: reclamationSubject,
+          description: reclamationDescription
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert('✅ Réclamation créée avec succès !')
+        setShowReclamationModal(false)
+        setReclamationSubject("")
+        setReclamationDescription("")
+        setSelectedCommandeForReclamation(null)
+        // Recharger les réclamations
+        fetchReclamations()
+      } else {
+        alert(`❌ Erreur: ${data.message || 'Impossible de créer la réclamation'}`)
+      }
+    } catch (error) {
+      console.error('Erreur création réclamation:', error)
+      alert('❌ Erreur lors de la création de la réclamation')
+    } finally {
+      setIsSubmittingReclamation(false)
+    }
+  }
+
+  const getStatutLabel = (statut) => {
+    const labels = {
+      'ouvert': 'Ouverte',
+      'en_cours': 'En cours',
+      'en_attente_validation': 'En attente de validation',
+      'valide': 'Validée',
+      'resolu': 'Résolue',
+      'rejete': 'Rejetée'
+    }
+    return labels[statut] || statut
+  }
+
+  const getStatutColor = (statut) => {
+    const colors = {
+      'ouvert': 'bg-red-100 text-red-800',
+      'en_cours': 'bg-yellow-100 text-yellow-800',
+      'en_attente_validation': 'bg-orange-100 text-orange-800',
+      'valide': 'bg-green-100 text-green-800',
+      'resolu': 'bg-blue-100 text-blue-800',
+      'rejete': 'bg-gray-100 text-gray-800'
+    }
+    return colors[statut] || 'bg-gray-100 text-gray-800'
+  }
+
   // Fonction pour soumettre une réclamation
   const handleComplaintSubmit = async (e) => {
     e.preventDefault();
@@ -481,8 +583,8 @@ export default function StudentDashboard() {
             {[
               { id: "menu", label: "Menu", icon: ShoppingCart },
               { id: "history", label: "Historique", icon: History },
+              { id: "reclamations", label: "Réclamations", icon: MessageSquare },
               { id: "referral", label: "Parrainage", icon: Gift },
-              { id: "complaints", label: "Réclamations", icon: MessageSquare },
               { id: "games", label: "Mini-jeux", icon: Gamepad2 },
             ].map((tab) => (
               <button
@@ -712,6 +814,15 @@ export default function StudentDashboard() {
                           </div>
                         )}
                       </div>
+
+                      {/* Bouton Signaler un problème */}
+                      <button
+                        onClick={() => openReclamationModal(order)}
+                        className="mt-4 w-full flex items-center justify-center gap-2 bg-orange-50 hover:bg-orange-100 text-orange-700 py-2 px-4 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                        Signaler un problème
+                      </button>
                     </div>
                   ))
                 )}
@@ -926,6 +1037,76 @@ export default function StudentDashboard() {
                     )}
                   </button>
                 </form>
+              </div>
+            )}
+
+            {activeTab === "reclamations" && (
+              <div className="space-y-4">
+                <h2 className="text-2xl font-bold mb-6">Mes réclamations</h2>
+                {isLoadingReclamations ? (
+                  <div className="bg-white rounded-xl p-12 text-center">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Chargement de vos réclamations...</p>
+                  </div>
+                ) : reclamations.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 text-center">
+                    <MessageSquare className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">Aucune réclamation pour le moment</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Vous pouvez signaler un problème depuis l'historique de vos commandes
+                    </p>
+                  </div>
+                ) : (
+                  reclamations.map((reclamation) => (
+                    <div key={reclamation.id_reclamation} className="bg-white rounded-xl p-6 shadow-lg">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-lg">{reclamation.sujet}</h3>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatutColor(reclamation.statut)}`}>
+                              {getStatutLabel(reclamation.statut)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            {new Date(reclamation.date_ouverture).toLocaleDateString("fr-FR", {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                          {reclamation.commande && (
+                            <p className="text-sm text-muted-foreground">
+                              Commande #{reclamation.commande.id_commande}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-700">{reclamation.description}</p>
+                      </div>
+
+                      {reclamation.commentaire_resolution && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                          <div className="flex items-start gap-2">
+                            <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <h4 className="font-semibold text-green-900 mb-1">Résolution</h4>
+                              <p className="text-sm text-green-800">{reclamation.commentaire_resolution}</p>
+                              {reclamation.date_cloture && (
+                                <p className="text-xs text-green-600 mt-2">
+                                  Clôturée le {new Date(reclamation.date_cloture).toLocaleDateString("fr-FR")}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
@@ -1190,6 +1371,85 @@ export default function StudentDashboard() {
                 className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
               >
                 Recharger
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de réclamation */}
+      {showReclamationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold mb-6">Signaler un problème</h3>
+            
+            {selectedCommandeForReclamation && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm font-semibold text-blue-900">
+                  Commande #{selectedCommandeForReclamation.id_commande}
+                </p>
+                <p className="text-xs text-blue-700">
+                  {new Date(selectedCommandeForReclamation.date_commande).toLocaleDateString("fr-FR")}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">Sujet de la réclamation *</label>
+                <input
+                  type="text"
+                  value={reclamationSubject}
+                  onChange={(e) => setReclamationSubject(e.target.value)}
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Ex: Commande incomplète"
+                  maxLength={150}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {reclamationSubject.length}/150 caractères
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Description détaillée *</label>
+                <textarea
+                  value={reclamationDescription}
+                  onChange={(e) => setReclamationDescription(e.target.value)}
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px]"
+                  placeholder="Décrivez le problème rencontré en détail..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowReclamationModal(false)
+                  setReclamationSubject("")
+                  setReclamationDescription("")
+                  setSelectedCommandeForReclamation(null)
+                }}
+                className="flex-1 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
+                disabled={isSubmittingReclamation}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSubmitReclamation}
+                disabled={isSubmittingReclamation || !reclamationSubject.trim() || !reclamationDescription.trim()}
+                className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmittingReclamation ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Envoi...
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="w-5 h-5" />
+                    Envoyer la réclamation
+                  </>
+                )}
               </button>
             </div>
           </div>

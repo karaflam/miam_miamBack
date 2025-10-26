@@ -313,6 +313,70 @@ export default function EmployeeDashboard() {
     setShowReclamationModal(true);
   };
 
+  const handleAssignReclamation = async (reclamationId) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const user = JSON.parse(localStorage.getItem('currentUser'));
+      
+      // L'ID employé peut être dans user.id_employe ou user.employe.id_employe
+      const employeId = user?.id_employe || user?.employe?.id_employe || user?.id;
+      
+      console.log('User data:', user);
+      console.log('Employee ID:', employeId);
+      
+      if (!employeId) {
+        alert('❌ Impossible de récupérer votre ID employé. Veuillez vous reconnecter.');
+        console.error('User object:', user);
+        return;
+      }
+
+      const response = await fetch(`http://localhost:8000/api/staff/reclamations/${reclamationId}/assign`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id_employe_assigne: employeId })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Réclamation prise en charge avec succès!');
+        fetchReclamations();
+      } else {
+        alert('❌ Erreur: ' + (data.message || 'Impossible de prendre en charge la réclamation'));
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors de la prise en charge');
+    }
+  };
+
+  const getStatutLabel = (statut) => {
+    const labels = {
+      'ouvert': 'Ouverte',
+      'en_cours': 'En cours',
+      'en_attente_validation': 'En attente validation',
+      'valide': 'Validée',
+      'resolu': 'Résolue',
+      'rejete': 'Rejetée'
+    };
+    return labels[statut] || statut;
+  };
+
+  const getStatutColor = (statut) => {
+    const colors = {
+      'ouvert': 'bg-red-100 text-red-800',
+      'en_cours': 'bg-yellow-100 text-yellow-800',
+      'en_attente_validation': 'bg-orange-100 text-orange-800',
+      'valide': 'bg-green-100 text-green-800',
+      'resolu': 'bg-blue-100 text-blue-800',
+      'rejete': 'bg-gray-100 text-gray-800'
+    };
+    return colors[statut] || 'bg-gray-100 text-gray-800';
+  };
+
   // Fonction pour charger les commandes depuis le backend
   const fetchOrders = async () => {
     setIsLoadingOrders(true);
@@ -470,12 +534,18 @@ export default function EmployeeDashboard() {
 
   const getReclamationStatusColor = (status) => {
     switch (status) {
-      case "ouverte":
-        return "bg-error/20 text-error"
+      case "ouvert":
+        return "bg-red-100 text-red-800"
       case "en_cours":
-        return "bg-warning/20 text-warning"
-      case "resolue":
-        return "bg-success/20 text-success"
+        return "bg-yellow-100 text-yellow-800"
+      case "en_attente_validation":
+        return "bg-orange-100 text-orange-800"
+      case "valide":
+        return "bg-green-100 text-green-800"
+      case "resolu":
+        return "bg-blue-100 text-blue-800"
+      case "rejete":
+        return "bg-gray-100 text-gray-800"
       default:
         return "bg-muted text-muted-foreground"
     }
@@ -483,12 +553,18 @@ export default function EmployeeDashboard() {
 
   const getReclamationStatusLabel = (status) => {
     switch (status) {
-      case "ouverte":
+      case "ouvert":
         return "Ouverte"
       case "en_cours":
         return "En cours"
-      case "resolue":
+      case "en_attente_validation":
+        return "En attente validation"
+      case "valide":
+        return "Validée"
+      case "resolu":
         return "Résolue"
+      case "rejete":
+        return "Rejetée"
       default:
         return status
     }
@@ -911,9 +987,10 @@ export default function EmployeeDashboard() {
                 <div className="flex gap-2 overflow-x-auto">
                   {[
                     { value: "all", label: "Toutes" },
-                    { value: "ouverte", label: "Ouvertes" },
+                    { value: "ouvert", label: "Ouvertes" },
                     { value: "en_cours", label: "En cours" },
-                    { value: "resolue", label: "Résolues" },
+                    { value: "en_attente_validation", label: "En attente validation" },
+                    { value: "valide", label: "Validées" },
                   ].map(({ value, label }) => (
                     <button
                       key={value}
@@ -943,11 +1020,11 @@ export default function EmployeeDashboard() {
                 </div>
               ) : (
                 filteredReclamations.map((reclamation) => (
-                  <div key={reclamation.id} className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                  <div key={reclamation.id_reclamation} className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-bold">Réclamation #{reclamation.id}</h3>
+                          <h3 className="text-xl font-bold">Réclamation #{reclamation.id_reclamation}</h3>
                           <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getReclamationStatusColor(reclamation.statut)}`}>
                             {getReclamationStatusLabel(reclamation.statut)}
                           </span>
@@ -967,7 +1044,7 @@ export default function EmployeeDashboard() {
                         </p>
                         {reclamation.commande && (
                           <p className="text-sm text-muted-foreground mt-1">
-                            Commande associée: #{reclamation.commande.id}
+                            Commande associée: #{reclamation.commande.id_commande}
                           </p>
                         )}
                       </div>
@@ -986,12 +1063,30 @@ export default function EmployeeDashboard() {
                     )}
 
                     <div className="flex gap-3">
-                      <button
-                        onClick={() => handleViewReclamation(reclamation)}
-                        className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-                      >
-                        Traiter
-                      </button>
+                      {reclamation.statut === 'ouvert' && (
+                        <button
+                          onClick={() => handleAssignReclamation(reclamation.id_reclamation)}
+                          className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                        >
+                          Prendre en charge
+                        </button>
+                      )}
+                      {reclamation.statut === 'en_cours' && (
+                        <button
+                          onClick={() => handleViewReclamation(reclamation)}
+                          className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                        >
+                          Proposer une résolution
+                        </button>
+                      )}
+                      {(reclamation.statut === 'en_attente_validation' || reclamation.statut === 'valide') && (
+                        <button
+                          onClick={() => handleViewReclamation(reclamation)}
+                          className="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+                        >
+                          Voir les détails
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -1015,7 +1110,7 @@ export default function EmployeeDashboard() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl sm:text-2xl font-bold">Réclamation #{selectedReclamation.id}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold">Réclamation #{selectedReclamation.id_reclamation}</h3>
                 <button
                   onClick={() => {
                     setShowReclamationModal(false);
@@ -1060,7 +1155,7 @@ export default function EmployeeDashboard() {
                 {selectedReclamation.commande && (
                   <div>
                     <p className="text-sm font-semibold text-muted-foreground mb-1">Commande associée</p>
-                    <p>#{selectedReclamation.commande.id}</p>
+                    <p>#{selectedReclamation.commande.id_commande}</p>
                   </div>
                 )}
 
@@ -1086,20 +1181,12 @@ export default function EmployeeDashboard() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                {selectedReclamation.statut === "ouverte" && (
+                {selectedReclamation.statut === "en_cours" && (
                   <button
-                    onClick={() => handleUpdateReclamationStatus(selectedReclamation.id, "en_cours")}
-                    className="flex-1 bg-warning text-white py-3 rounded-lg font-semibold hover:bg-warning/80 transition-colors"
+                    onClick={() => handleUpdateReclamationStatus(selectedReclamation.id_reclamation, "en_attente_validation")}
+                    className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
                   >
-                    Prendre en charge
-                  </button>
-                )}
-                {(selectedReclamation.statut === "ouverte" || selectedReclamation.statut === "en_cours") && (
-                  <button
-                    onClick={() => handleUpdateReclamationStatus(selectedReclamation.id, "resolue")}
-                    className="flex-1 bg-success text-white py-3 rounded-lg font-semibold hover:bg-success/80 transition-colors"
-                  >
-                    Marquer comme résolue
+                    Proposer cette résolution
                   </button>
                 )}
                 <button

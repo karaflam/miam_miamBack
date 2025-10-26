@@ -2107,55 +2107,91 @@ export default function ManagerDashboard() {
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div>
-                <h2 className="text-xl sm:text-2xl font-bold">Gestion des Réclamations</h2>
-                <p className="text-sm text-gray-600">{urgentComplaints} réclamations urgentes</p>
+                <h2 className="text-xl sm:text-2xl font-bold">Réclamations en attente de validation</h2>
+                <p className="text-sm text-gray-600">
+                  {complaints.filter(c => c.statut === 'en_attente_validation').length} réclamation(s) en attente
+                </p>
               </div>
-              <select className="border border-gray-300 rounded-lg px-4 py-2 text-sm">
-                <option>Toutes les réclamations</option>
-                <option>Urgentes</option>
-                <option>En cours</option>
-                <option>Résolues</option>
-              </select>
             </div>
 
             <div className="space-y-4">
-              {complaints.map((complaint) => (
-                <div 
-                  key={complaint.id}
-                  className="bg-white rounded-xl p-4 sm:p-6 shadow-lg"
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold">Commande #{complaint.orderId}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          complaint.status === "urgent" 
-                            ? "bg-red-600 text-white" 
-                            : "bg-yellow-600 text-white"
-                        }`}>
-                          {complaint.status === "urgent" ? "URGENT" : "EN COURS"}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">{complaint.customerName}</p>
-                      <p className="text-sm text-gray-700 italic">"{complaint.message}"</p>
-                    </div>
-                    <span className="text-xs text-gray-500">{complaint.time}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-100">
-                    <button className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      Valider la réponse
-                    </button>
-                    <button className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 flex items-center justify-center gap-2">
-                      <XCircle className="w-4 h-4" />
-                      Rejeter
-                    </button>
-                    <button className="px-4 py-2 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50">
-                      Détails
-                    </button>
-                  </div>
+              {isLoadingComplaints ? (
+                <div className="bg-white rounded-xl p-12 text-center shadow-lg">
+                  <RefreshCw className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-gray-600">Chargement des réclamations...</p>
                 </div>
-              ))}
+              ) : complaints.filter(c => c.statut === 'en_attente_validation').length === 0 ? (
+                <div className="bg-white rounded-xl p-12 text-center shadow-lg">
+                  <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Aucune réclamation en attente de validation</p>
+                </div>
+              ) : (
+                complaints.filter(c => c.statut === 'en_attente_validation').map((complaint) => (
+                  <div 
+                    key={complaint.id_reclamation}
+                    className="bg-white rounded-xl p-4 sm:p-6 shadow-lg"
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-bold">{complaint.sujet}</h3>
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+                            En attente validation
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Client: {complaint.utilisateur?.prenom} {complaint.utilisateur?.nom}
+                        </p>
+                        {complaint.commande && (
+                          <p className="text-sm text-gray-600 mb-2">
+                            Commande #{complaint.commande.id_commande}
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-700 mb-3">
+                          <span className="font-semibold">Problème:</span> {complaint.description}
+                        </p>
+                        {complaint.commentaire_resolution && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                            <p className="text-sm font-semibold text-blue-900 mb-1">
+                              Résolution proposée par l'employé:
+                            </p>
+                            <p className="text-sm text-blue-800">{complaint.commentaire_resolution}</p>
+                            {complaint.employeAssigne && (
+                              <p className="text-xs text-blue-600 mt-1">
+                                Par: {complaint.employeAssigne.nom}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {new Date(complaint.date_ouverture).toLocaleDateString("fr-FR")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-100">
+                      <button 
+                        onClick={() => updateComplaintStatus(complaint.id_reclamation, 'valide', complaint.commentaire_resolution)}
+                        className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Valider la résolution
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const raison = prompt('Raison du rejet:');
+                          if (raison) {
+                            updateComplaintStatus(complaint.id_reclamation, 'rejete', raison);
+                          }
+                        }}
+                        className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Rejeter
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

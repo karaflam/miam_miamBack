@@ -184,8 +184,8 @@ class ReclamationController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'statut' => 'required|in:ouvert,en_cours,resolu,rejete',
-            'commentaire_resolution' => 'required_if:statut,resolu,rejete|string',
+            'statut' => 'required|in:ouvert,en_cours,en_attente_validation,valide,resolu,rejete',
+            'commentaire_resolution' => 'required_if:statut,en_attente_validation,valide,resolu,rejete|string',
         ]);
 
         if ($validator->fails()) {
@@ -206,7 +206,7 @@ class ReclamationController extends Controller
                 $updateData['commentaire_resolution'] = $request->commentaire_resolution;
             }
 
-            if (in_array($request->statut, ['resolu', 'rejete'])) {
+            if (in_array($request->statut, ['valide', 'resolu', 'rejete'])) {
                 $updateData['date_cloture'] = now();
             }
 
@@ -236,6 +236,8 @@ class ReclamationController extends Controller
                 'total' => Reclamation::count(),
                 'ouvert' => Reclamation::where('statut', 'ouvert')->count(),
                 'en_cours' => Reclamation::where('statut', 'en_cours')->count(),
+                'en_attente_validation' => Reclamation::where('statut', 'en_attente_validation')->count(),
+                'valide' => Reclamation::where('statut', 'valide')->count(),
                 'resolu' => Reclamation::where('statut', 'resolu')->count(),
                 'rejete' => Reclamation::where('statut', 'rejete')->count(),
             ];
