@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Chart } from 'chart.js/auto'
-import { mockOrders as initialOrders, mockUsers, mockPromotions as initialPromotions } from "../data/mockData"
+// Mock data removed - using real API data
 import { 
   DollarSign, TrendingUp, Users, ShoppingBag, Plus, Edit, Eye, EyeOff, 
   BarChart3, Package, UserPlus, AlertCircle, Clock, CheckCircle, 
@@ -42,7 +42,17 @@ export default function ManagerDashboard() {
   
   const [orders, setOrders] = useState([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
-  const [promotions, setPromotions] = useState(initialPromotions)
+  const [promotions, setPromotions] = useState([])
+  const [statistics, setStatistics] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    activeOrders: 0,
+    totalCustomers: 0,
+    avgOrderValue: 0
+  })
+  const [isLoadingStatistics, setIsLoadingStatistics] = useState(false)
+  const [weeklyRevenue, setWeeklyRevenue] = useState([])
+  const [topSellingData, setTopSellingData] = useState([])
   const [showPromoModal, setShowPromoModal] = useState(false)
   const [editingPromo, setEditingPromo] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -98,16 +108,16 @@ export default function ManagerDashboard() {
       if (chart) chart.destroy()
     })
 
-    if (activeTab === "dashboard") {
-      // Graphique des ventes
+    if (activeTab === "dashboard" && weeklyRevenue.length > 0) {
+      // Graphique des ventes de la semaine
       if (salesChartRef.current) {
         chartInstances.current.sales = new Chart(salesChartRef.current, {
           type: 'line',
           data: {
-            labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+            labels: weeklyRevenue.map(d => d.date),
             datasets: [{
-              label: 'Ventes (F)',
-              data: [420000, 380000, 450000, 520000, 680000, 890000, 650000],
+              label: 'CA (F)',
+              data: weeklyRevenue.map(d => d.revenue),
               borderColor: '#cfbd97',
               backgroundColor: 'rgba(207, 189, 151, 0.1)',
               tension: 0.4,
@@ -150,14 +160,14 @@ export default function ManagerDashboard() {
         })
       }
 
-      // Graphique des plats populaires
-      if (popularItemsChartRef.current) {
+      // Graphique des plats les plus vendus
+      if (popularItemsChartRef.current && topSellingData.length > 0) {
         chartInstances.current.popularItems = new Chart(popularItemsChartRef.current, {
           type: 'doughnut',
           data: {
-            labels: ['Burger Classic', 'Salade César', 'Wrap Poulet', 'Pizza Margherita', 'Autres'],
+            labels: topSellingData.map(item => item.name),
             datasets: [{
-              data: [127, 89, 76, 54, 98],
+              data: topSellingData.map(item => item.quantity),
               backgroundColor: ['#cfbd97', '#000000', '#e8dcc0', '#b5a082', '#f5f5f5'],
               borderWidth: 2,
               borderColor: '#fff',
@@ -176,6 +186,13 @@ export default function ManagerDashboard() {
                     size: 11
                   }
                 }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.label + ': ' + context.parsed + ' vendus'
+                  }
+                }
               }
             }
           }
@@ -188,23 +205,21 @@ export default function ManagerDashboard() {
         if (chart) chart.destroy()
       })
     }
-  }, [activeTab])
+  }, [activeTab, weeklyRevenue, topSellingData])
 
-  // Calculate statistics
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0)
-  const totalOrders = orders.length
-  const activeOrders = orders.filter(o => o.status !== "completed").length
-  const totalCustomers = mockUsers.filter((u) => u.role === "student").length
-  const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0
-  const urgentComplaints = complaints.filter(c => c.status === "urgent").length
+  // Statistics from API
+  const { totalRevenue, totalOrders, activeOrders, totalCustomers, avgOrderValue } = statistics;
+  const pendingComplaints = complaints.filter(c => c.statut === 'en_attente_validation').length;
 
   const recentOrders = orders.slice(0, 10)
 
   const topSellingItems = menuItems
     .map((item) => {
       const orderCount = orders.reduce((count, order) => {
-        const itemInOrder = order.items.find((i) => i.menuItemId === item.id)
-        return count + (itemInOrder ? itemInOrder.quantity : 0)
+        // Les commandes de l'API ont 'details' au lieu de 'items'
+        const details = order.details || order.items || []
+        const itemInOrder = details.find((d) => d.id_article === item.id || d.menuItemId === item.id)
+        return count + (itemInOrder ? (itemInOrder.quantite || itemInOrder.quantity || 0) : 0)
       }, 0)
       return { ...item, orderCount }
     })
@@ -647,6 +662,159 @@ export default function ManagerDashboard() {
     }
   };
 
+  // Fonction pour récupérer les statistiques du dashboard
+  const fetchStatistics = async () => {
+    setIsLoadingStatistics(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      // Récupérer les commandes pour calculer les stats
+      const ordersResponse = await fetch('http://localhost:8000/api/staff/commandes', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!ordersResponse.ok) {
+        console.error('Erreur commandes:', ordersResponse.status, ordersResponse.statusText);
+        const errorText = await ordersResponse.text();
+        console.error('Réponse:', errorText.substring(0, 200));
+        throw new Error(`Erreur ${ordersResponse.status}: ${ordersResponse.statusText}`);
+      }
+      
+      const ordersData = await ordersResponse.json();
+      
+      if (ordersData.success) {
+        const allOrders = ordersData.data || [];
+        
+        // Debug: Afficher les statuts de paiement
+        console.log('Commandes récupérées:', allOrders.length);
+        if (allOrders.length > 0) {
+          console.log('Exemple de commande:', allOrders[0]);
+          console.log('Statuts de paiement uniques:', [...new Set(allOrders.map(o => o.statut_paiement))]);
+        }
+        
+        // Compter les clients uniques depuis les commandes
+        const uniqueCustomers = new Set();
+        allOrders.forEach(order => {
+          if (order.id_utilisateur) {
+            uniqueCustomers.add(order.id_utilisateur);
+          }
+        });
+        const totalCustomers = uniqueCustomers.size;
+        
+        // Date d'aujourd'hui (début et fin de journée)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        // Filtrer les commandes du jour (exclure seulement les annulées)
+        const todayOrders = allOrders.filter(order => {
+          const orderDate = new Date(order.date_commande || order.created_at);
+          return orderDate >= today && orderDate < tomorrow && order.statut !== 'annulee';
+        });
+        
+        console.log('Commandes du jour:', todayOrders.length);
+        console.log('Montants finaux:', todayOrders.map(o => o.montant_final));
+        
+        // Calculer le CA du jour (montant final après remises)
+        const totalRevenue = todayOrders.reduce((sum, order) => {
+          // Si statut_paiement existe, vérifier qu'il est payé
+          // Sinon, compter toutes les commandes non annulées
+          if (order.statut_paiement === undefined || 
+              order.statut_paiement === null ||
+              order.statut_paiement === 'paye' || 
+              order.statut_paiement === 'payé' || 
+              order.statut_paiement === 'paid') {
+            return sum + (parseFloat(order.montant_final) || 0);
+          }
+          return sum;
+        }, 0);
+        
+        const totalOrders = todayOrders.length;
+        // Nombre de commandes non encore livrées (exclure livrées et annulées)
+        const activeOrders = allOrders.filter(o => 
+          o.statut !== 'livree' && o.statut !== 'annulee'
+        ).length;
+        
+        const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+        
+        setStatistics({
+          totalRevenue,
+          totalOrders,
+          activeOrders,
+          totalCustomers,
+          avgOrderValue
+        });
+        
+        // Calculer les données pour le graphique de la semaine (7 derniers jours)
+        const weekData = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          date.setHours(0, 0, 0, 0);
+          const nextDate = new Date(date);
+          nextDate.setDate(nextDate.getDate() + 1);
+          
+          const dayOrders = allOrders.filter(order => {
+            const orderDate = new Date(order.date_commande || order.created_at);
+            return orderDate >= date && orderDate < nextDate && order.statut !== 'annulee';
+          });
+          
+          const dayRevenue = dayOrders.reduce((sum, order) => {
+            // Si statut_paiement existe, vérifier qu'il est payé
+            // Sinon, compter toutes les commandes non annulées
+            if (order.statut_paiement === undefined || 
+                order.statut_paiement === null ||
+                order.statut_paiement === 'paye' || 
+                order.statut_paiement === 'payé' || 
+                order.statut_paiement === 'paid') {
+              return sum + (parseFloat(order.montant_final) || 0);
+            }
+            return sum;
+          }, 0);
+          
+          weekData.push({
+            date: date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }),
+            revenue: dayRevenue
+          });
+        }
+        setWeeklyRevenue(weekData);
+        
+        // Calculer les plats les plus vendus (tous les temps)
+        const itemSales = {};
+        allOrders.forEach(order => {
+          if (order.details && Array.isArray(order.details)) {
+            order.details.forEach(detail => {
+              const itemName = detail.article?.nom || 'Article inconnu';
+              const itemId = detail.id_article;
+              if (!itemSales[itemId]) {
+                itemSales[itemId] = {
+                  name: itemName,
+                  quantity: 0
+                };
+              }
+              itemSales[itemId].quantity += parseInt(detail.quantite) || 0;
+            });
+          }
+        });
+        
+        // Trier et prendre les 5 meilleurs
+        const topItems = Object.values(itemSales)
+          .sort((a, b) => b.quantity - a.quantity)
+          .slice(0, 5);
+        
+        setTopSellingData(topItems);
+      }
+    } catch (error) {
+      console.error('Erreur statistiques:', error);
+    } finally {
+      setIsLoadingStatistics(false);
+    }
+  };
+
   // Mettre à jour le statut d'une commande
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
@@ -705,6 +873,13 @@ export default function ManagerDashboard() {
   };
 
   useEffect(() => {
+    if (activeTab === "dashboard") {
+      fetchStatistics();
+      fetchOrders(); // Pour les commandes récentes
+      fetchMenuItems(); // Pour les articles les plus vendus
+      fetchUsers(); // Pour les employés
+      fetchComplaints(); // Pour les réclamations urgentes
+    }
     if (activeTab === "menu") {
       fetchCategories();
       fetchMenuItems();
@@ -1111,12 +1286,12 @@ export default function ManagerDashboard() {
           <div className="space-y-1 px-3">
             {[
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-              { id: "orders", label: "Commandes", icon: ShoppingBag, badge: activeOrders },
-              { id: "menu", label: "Menu", icon: Tag },
-              { id: "stock", label: "Stock", icon: Package },
-              { id: "promotions", label: "Promotions", icon: Gift, badge: promotions.filter(p => p.active).length },
+              { id: "orders", label: "Commandes", icon: ShoppingBag, badge: orders.length },
+              { id: "menu", label: "Menu", icon: Tag, badge: menuItems.length },
+              { id: "stock", label: "Stock", icon: Package, badge: stockItems.length },
+              { id: "promotions", label: "Promotions", icon: Gift, badge: promotions.length },
               { id: "employees", label: "Employés", icon: Users, badge: employees.length },
-              { id: "complaints", label: "Réclamations", icon: MessageSquare, badge: urgentComplaints },
+              { id: "complaints", label: "Réclamations", icon: MessageSquare, badge: complaints.filter(c => c.statut === 'en_attente_validation').length },
               { id: "statistics", label: "Statistiques", icon: TrendingUp },
             ].map((tab) => (
               <button
@@ -1152,9 +1327,9 @@ export default function ManagerDashboard() {
             </div>
             <div className="relative">
               <Bell className="w-5 h-5 text-gray-500 cursor-pointer hover:text-[#cfbd97]" />
-              {urgentComplaints > 0 && (
+              {pendingComplaints > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {urgentComplaints}
+                  {pendingComplaints}
                 </span>
               )}
             </div>
@@ -1237,9 +1412,9 @@ export default function ManagerDashboard() {
                   <div className="w-10 h-10 bg-[#cfbd97] flex items-center justify-center rounded">
                     <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <span className="text-xs sm:text-sm text-red-600 font-semibold">Urgent</span>
+                  <span className="text-xs sm:text-sm text-orange-600 font-semibold">En attente</span>
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-black mb-1">{urgentComplaints}</div>
+                <div className="text-xl sm:text-2xl font-bold text-black mb-1">{pendingComplaints}</div>
                 <div className="text-xs sm:text-sm text-gray-600">Réclamations</div>
               </div>
             </div>
@@ -1280,20 +1455,23 @@ export default function ManagerDashboard() {
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {employees.slice(0, 3).map((emp) => (
-                    <div key={emp.id} className="flex items-center justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-[#cfbd97] flex items-center justify-center rounded flex-shrink-0">
-                          <span className="text-white text-sm font-bold">{emp.name.charAt(0)}</span>
+                  {employees.slice(0, 3).map((emp) => {
+                    const employeeName = emp.name || `${emp.prenom || ''} ${emp.nom || ''}`.trim() || 'Employé';
+                    return (
+                      <div key={emp.id} className="flex items-center justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-[#cfbd97] flex items-center justify-center rounded flex-shrink-0">
+                            <span className="text-white text-sm font-bold">{employeeName.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-black text-sm">{employeeName}</p>
+                            <p className="text-xs text-gray-600">{getRoleLabel(emp.role)}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-black text-sm">{emp.name}</p>
-                          <p className="text-xs text-gray-600">{getRoleLabel(emp.role)}</p>
-                        </div>
+                        <span className={`w-2 h-2 sm:w-3 sm:h-3 ${getEmployeeStatusColor(emp.status)} rounded-full flex-shrink-0`}></span>
                       </div>
-                      <span className={`w-2 h-2 sm:w-3 sm:h-3 ${getEmployeeStatusColor(emp.status)} rounded-full flex-shrink-0`}></span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <button 
                   onClick={() => setActiveTab("employees")}
@@ -1309,33 +1487,37 @@ export default function ManagerDashboard() {
                 <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-base sm:text-lg font-bold text-black">Réclamations récentes</h3>
-                  <span className="bg-red-100 text-red-800 px-2 py-1 text-xs font-semibold rounded">
-                    {urgentComplaints} non traitées
+                  <span className="bg-orange-100 text-orange-800 px-2 py-1 text-xs font-semibold rounded">
+                    {pendingComplaints} en attente
                   </span>
                 </div>
                 <div className="space-y-4">
-                  {complaints.map((complaint) => (
+                  {complaints.slice(0, 5).map((complaint) => (
                     <div 
-                      key={complaint.id}
+                      key={complaint.id_reclamation}
                       className={`p-3 sm:p-4 border-l-4 rounded-r hover:shadow transition-all ${
-                        complaint.status === "urgent" 
+                        complaint.statut === "ouvert" 
                           ? "border-red-500 bg-red-50" 
                           : "border-yellow-500 bg-yellow-50"
                       }`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                         <p className="font-semibold text-black text-sm">
-                          Commande #{complaint.orderId} - {complaint.customerName}
+                          {complaint.sujet} - {complaint.utilisateur?.prenom} {complaint.utilisateur?.nom}
                         </p>
-                        <span className="text-xs text-gray-600">{complaint.time}</span>
+                        <span className="text-xs text-gray-600">
+                          {new Date(complaint.date_ouverture).toLocaleDateString('fr-FR')}
+                        </span>
                       </div>
-                      <p className="text-xs sm:text-sm text-gray-700 mb-2">"{complaint.message}"</p>
+                      <p className="text-xs sm:text-sm text-gray-700 mb-2">"{complaint.description}"</p>
                       <span className={`inline-block px-2 py-1 text-xs font-semibold rounded ${
-                        complaint.status === "urgent" 
+                        complaint.statut === "ouvert" 
                           ? "bg-red-600 text-white" 
-                          : "bg-yellow-600 text-white"
+                          : complaint.statut === "en_cours"
+                          ? "bg-yellow-600 text-white"
+                          : "bg-blue-600 text-white"
                       }`}>
-                        {complaint.status === "urgent" ? "URGENT" : "EN COURS"}
+                        {complaint.statut === "ouvert" ? "OUVERTE" : complaint.statut === "en_cours" ? "EN COURS" : "EN ATTENTE"}
                       </span>
                     </div>
                   ))}
@@ -1428,14 +1610,14 @@ export default function ManagerDashboard() {
               <div className="grid grid-cols-1 gap-4">
                 {orders.map((order) => (
                   <div 
-                    key={order.id} 
+                    key={order.id_commande} 
                     className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
                     onClick={() => setSelectedOrder(order)}
                   >
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold">#{order.id}</h3>
+                          <h3 className="text-lg font-bold">#{order.id_commande}</h3>
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.statut)}`}>
                             {getStatusLabel(order.statut)}
                           </span>
