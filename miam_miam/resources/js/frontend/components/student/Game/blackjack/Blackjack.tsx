@@ -10,12 +10,14 @@ interface GameState {
   solde: number;
   mise: number;
   victoiresConsecutives: number;
+  nombreTours: number;
   paquet: Card[];
   mainJoueur: Card[];
   mainCroupier: Card[];
   jeuEnCours: boolean;
   message: string;
   messageType: 'victory' | 'defeat' | 'info' | '';
+  pointsFidelite: number;
 }
 
 const Jeu21: React.FC = () => {
@@ -23,12 +25,14 @@ const Jeu21: React.FC = () => {
     solde: 100,
     mise: 0,
     victoiresConsecutives: 0,
+    nombreTours: 0,
     paquet: [],
     mainJoueur: [],
     mainCroupier: [],
     jeuEnCours: false,
     message: '',
-    messageType: ''
+    messageType: '',
+    pointsFidelite: 0
   });
 
   const initialiserPaquet = useCallback((): Card[] => {
@@ -89,6 +93,16 @@ const Jeu21: React.FC = () => {
   };
 
   const placerMise = (montant: number) => {
+    // Vérifier si le maximum de tours est atteint
+    if (gameState.nombreTours >= 10) {
+      setGameState(prev => ({
+        ...prev,
+        message: 'Maximum de 10 tours atteint ! Partie terminée.',
+        messageType: 'info'
+      }));
+      return false;
+    }
+
     if (montant > 0 && montant <= gameState.solde && !gameState.jeuEnCours) {
       const nouveauPaquet = initialiserPaquet();
       const { carte: carte1, nouveauPaquet: paquet1 } = tirerCarte(nouveauPaquet);
@@ -103,6 +117,7 @@ const Jeu21: React.FC = () => {
         ...prev,
         mise: montant,
         jeuEnCours: true,
+        nombreTours: prev.nombreTours + 1,
         paquet: paquetFinal,
         mainJoueur,
         mainCroupier,
@@ -173,6 +188,7 @@ const Jeu21: React.FC = () => {
     let victoire = false;
     let nouveauSolde = gameState.solde;
     let nouvellesVictoires = gameState.victoiresConsecutives;
+    let pointsFideliteGagnes = 0;
 
     const totalJoueur = calculerMain(gameState.mainJoueur);
     let mainCroupier = [...gameState.mainCroupier];
@@ -211,7 +227,6 @@ const Jeu21: React.FC = () => {
       } else {
         message = 'Égalité! Mise remboursée.';
         victoire = false;
-        // En cas d'égalité, on ne change pas le solde ni les victoires
       }
     }
 
@@ -222,20 +237,7 @@ const Jeu21: React.FC = () => {
       // Vérifier si c'est un Blackjack naturel (21 avec 2 cartes)
       const estBlackjack = totalJoueur === 21 && gameState.mainJoueur.length === 2;
       
-      if (nouvellesVictoires >= 3) {
-        // Condition spéciale: doit avoir un As pour gagner
-        const aUn = gameState.mainJoueur.some(carte => carte.valeur === 'A');
-        if (!aUn) {
-          message = '3 victoires! Mais vous devez avoir un As pour gagner!';
-          victoire = false;
-          nouvellesVictoires = 0;
-          nouveauSolde -= gameState.mise;
-        } else {
-          message = '🎉 3 victoires avec un As! Vous gagnez TRIPLE!';
-          nouveauSolde += gameState.mise * 3; // Triple gain
-          nouvellesVictoires = 0; // Réinitialiser après le bonus
-        }
-      } else if (estBlackjack) {
+      if (estBlackjack) {
         message = '🃏 BLACKJACK! Vous gagnez 2.5x votre mise!';
         nouveauSolde += Math.floor(gameState.mise * 2.5);
       } else {
@@ -244,6 +246,21 @@ const Jeu21: React.FC = () => {
       }
     }
 
+    // Système de points de fidélité
+    // Si atteint 500£ avant 5 tours → 2 points
+    if (nouveauSolde >= 500 && gameState.nombreTours <= 5) {
+      pointsFideliteGagnes = 2;
+      message += ' 🎉 500£ en moins de 5 tours! +2 points de fidélité!';
+    }
+    // Si atteint au moins 500£ en 10 tours → 1 point
+    else if (nouveauSolde >= 500 && gameState.nombreTours <= 10) {
+      pointsFideliteGagnes = 1;
+      message += ' 👍 500£ atteints! +1 point de fidélité!';
+    }
+
+    // Arrêter la partie si 500£ atteints ou 10 tours
+    const partieTerminee = nouveauSolde >= 500 || gameState.nombreTours >= 10;
+
     setGameState(prev => ({
       ...prev,
       solde: nouveauSolde,
@@ -251,9 +268,61 @@ const Jeu21: React.FC = () => {
       jeuEnCours: false,
       mainCroupier,
       paquet: nouveauPaquet,
-      message,
-      messageType: victoire ? 'victory' : 'defeat'
+      message: partieTerminee ? message + ' Partie terminée!' : message,
+      messageType: victoire ? 'victory' : 'defeat',
+      pointsFidelite: prev.pointsFidelite + pointsFideliteGagnes
     }));
+
+    // Synchroniser avec le backend et afficher le message de points
+    if (pointsFideliteGagnes > 0) {
+      synchroniserPointsFidelite(pointsFideliteGagnes);
+    }
+    
+    // Afficher un message récapitulatif si la partie est terminée
+    if (partieTerminee) {
+      setTimeout(() => {
+        alert(`🎮 Partie terminée!\n\n💰 Solde final: ${nouveauSolde}€\n🎯 Tours joués: ${gameState.nombreTours}\n⭐ Points de fidélité gagnés: ${pointsFideliteGagnes}\n\n${pointsFideliteGagnes > 0 ? '✅ Vos points ont été ajoutés à votre compte!' : '💡 Atteignez 500€ pour gagner des points!'}`);
+      }, 1000);
+    }
+  };
+
+  // Fonction pour synchroniser les points avec le backend
+  const synchroniserPointsFidelite = async (points: number) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        console.error('Token d\'authentification manquant');
+        return;
+      }
+      
+      const response = await fetch('http://localhost:8000/api/student/points/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          points: points,
+          source: 'blackjack'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Erreur lors de la synchronisation des points:', response.status, errorData);
+        
+        if (response.status === 401) {
+          console.error('Session expirée. Veuillez vous reconnecter.');
+        }
+      } else {
+        const data = await response.json();
+        console.log('Points synchronisés avec succès:', data);
+      }
+    } catch (error) {
+      console.error('Erreur réseau:', error);
+    }
   };
 
   const nouvellePartie = () => {
@@ -317,14 +386,24 @@ const Jeu21: React.FC = () => {
           <div className="info-value">{gameState.mise}€</div>
         </div>
         <div className="info-item">
-          <div>Victoires</div>
-          <div className="info-value">{gameState.victoiresConsecutives}</div>
+          <div>Tours</div>
+          <div className="info-value">{gameState.nombreTours}/10</div>
+        </div>
+        <div className="info-item">
+          <div>Points Fidélité</div>
+          <div className="info-value">{gameState.pointsFidelite}</div>
         </div>
       </div>
 
-      {gameState.victoiresConsecutives >= 2 && (
+      {gameState.solde >= 500 && (
+        <div className="special-condition" style={{backgroundColor: '#4CAF50', color: 'white'}}>
+          🎉 Objectif atteint! Vous avez gagné {gameState.pointsFidelite} point(s) de fidélité!
+        </div>
+      )}
+      
+      {gameState.nombreTours >= 5 && gameState.solde < 500 && (
         <div className="special-condition">
-          ⚠️ Condition spéciale: 3 victoires - vous devez avoir un As (A) pour gagner TRIPLE !
+          ⚠️ Plus que {10 - gameState.nombreTours} tours pour atteindre 500€ et gagner 1 point!
         </div>
       )}
 

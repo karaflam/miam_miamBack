@@ -119,6 +119,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/historique', [FideliteController::class, 'historique']);
     });
     
+    // Points de jeux (Blackjack, Quiz)
+    Route::post('/student/points/add', [FideliteController::class, 'addPoints']);
+    
     // Parrainage
     Route::prefix('parrainage')->group(function () {
         Route::get('/mon-code', [ParrainageController::class, 'monCode']);

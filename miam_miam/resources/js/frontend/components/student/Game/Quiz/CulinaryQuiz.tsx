@@ -1,113 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import './CulinaryQuizScoped.css';
-
-interface Question {
-  id: number;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-  points: number;
-}
+import { Question, getRandomQuestions } from './QuizQuestions';
 
 interface QuizState {
   currentQuestion: number;
   score: number;
-  pointsEarned: number;
   answered: boolean;
   selectedAnswer: number | null;
   isCorrect: boolean | null;
   quizCompleted: boolean;
   timeLeft: number;
+  questions: Question[];
 }
 
-const questions: Question[] = [
-  {
-    id: 1,
-    question: "Quel est l'ingrédient principal du thiéboudienne ?",
-    options: ["Poulet", "Poisson", "Bœuf", "Mouton"],
-    correctAnswer: 1,
-    points: 2
-  },
-  {
-    id: 2,
-    question: "Le yassa est traditionnellement préparé avec quel ingrédient acide ?",
-    options: ["Citron", "Vinaigre", "Oignon", "Tomate"],
-    correctAnswer: 0,
-    points: 2
-  },
-  {
-    id: 3,
-    question: "Quel plat sénégalais est fait à base de mil ?",
-    options: ["Mafé", "Couscous", "Thiakry", "Domoda"],
-    correctAnswer: 2,
-    points: 3
-  },
-  {
-    id: 4,
-    question: "Quelle est la boisson traditionnelle sénégalaise à base de bissap ?",
-    options: ["Jus de gingembre", "Jus de tamarin", "Jus d'hibiscus", "Jus de baobab"],
-    correctAnswer: 2,
-    points: 2
-  },
-  {
-    id: 5,
-    question: "Le mafé est une sauce à base de quoi ?",
-    options: ["Arachide", "Tomate", "Gombo", "Oignon"],
-    correctAnswer: 0,
-    points: 2
-  },
-  {
-    id: 6,
-    question: "Quel est le plat national du Sénégal ?",
-    options: ["Yassa", "Mafé", "Thiéboudienne", "Domoda"],
-    correctAnswer: 2,
-    points: 3
-  },
-  {
-    id: 7,
-    question: "Le fataya est inspiré de quelle cuisine ?",
-    options: ["Française", "Libanaise", "Indienne", "Marocaine"],
-    correctAnswer: 1,
-    points: 2
-  },
-  {
-    id: 8,
-    question: "Quel fruit est utilisé pour faire le jus de bouye ?",
-    options: ["Mangue", "Pain de singe (baobab)", "Goyave", "Papaye"],
-    correctAnswer: 1,
-    points: 3
-  },
-  {
-    id: 9,
-    question: "Le ndambé est un plat à base de quoi ?",
-    options: ["Riz", "Haricots", "Mil", "Maïs"],
-    correctAnswer: 1,
-    points: 2
-  },
-  {
-    id: 10,
-    question: "Quel accompagnement est servi avec le thiéboudienne ?",
-    options: ["Pain", "Riz", "Couscous", "Frites"],
-    correctAnswer: 1,
-    points: 2
-  }
-];
+// Les questions sont maintenant importées depuis QuizQuestions.ts
 
 interface CulinaryQuizProps {
   onComplete?: (points: number) => void;
 }
 
 const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
-  const [quizState, setQuizState] = useState<QuizState>({
+  // Initialiser avec 10 questions aléatoires
+  const [quizState, setQuizState] = useState<QuizState>(() => ({
     currentQuestion: 0,
     score: 0,
-    pointsEarned: 0,
     answered: false,
     selectedAnswer: null,
     isCorrect: null,
     quizCompleted: false,
-    timeLeft: 30
-  });
+    timeLeft: 30,
+    questions: getRandomQuestions(10)
+  }));
 
   // Timer pour chaque question
   useEffect(() => {
@@ -134,7 +57,7 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
   const handleAnswerClick = (answerIndex: number) => {
     if (quizState.answered) return;
 
-    const currentQ = questions[quizState.currentQuestion];
+    const currentQ = quizState.questions[quizState.currentQuestion];
     const correct = answerIndex === currentQ.correctAnswer;
     
     setQuizState(prev => ({
@@ -142,13 +65,12 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
       selectedAnswer: answerIndex,
       answered: true,
       isCorrect: correct,
-      score: correct ? prev.score + 1 : prev.score,
-      pointsEarned: correct ? prev.pointsEarned + currentQ.points : prev.pointsEarned
+      score: correct ? prev.score + 1 : prev.score
     }));
   };
 
   const handleNextQuestion = () => {
-    if (quizState.currentQuestion < questions.length - 1) {
+    if (quizState.currentQuestion < quizState.questions.length - 1) {
       setQuizState(prev => ({
         ...prev,
         currentQuestion: prev.currentQuestion + 1,
@@ -158,10 +80,84 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
         timeLeft: 30
       }));
     } else {
-      setQuizState(prev => ({ ...prev, quizCompleted: true }));
-      if (onComplete) {
-        onComplete(quizState.pointsEarned);
+      // Quiz terminé, calculer les points
+      const finalScore = quizState.score + (quizState.isCorrect ? 1 : 0);
+      let pointsFidelite = 0;
+      
+      if (finalScore > 5) {
+        pointsFidelite = 2;
+      } else if (finalScore === 5) {
+        pointsFidelite = 1;
       }
+      
+      setQuizState(prev => ({ ...prev, quizCompleted: true }));
+      
+      if (onComplete) {
+        onComplete(pointsFidelite);
+      }
+      
+      // Synchroniser avec le backend
+      if (pointsFidelite > 0) {
+        synchroniserPointsFidelite(pointsFidelite, finalScore);
+      }
+      
+      // Afficher un message récapitulatif
+      setTimeout(() => {
+        const percentage = (finalScore / 10) * 100;
+        let message = `🎮 Quiz terminé!\n\n`;
+        message += `📊 Score: ${finalScore}/10 (${percentage}%)\n`;
+        message += `⭐ Points de fidélité gagnés: ${pointsFidelite}\n\n`;
+        
+        if (pointsFidelite === 2) {
+          message += `🎉 Excellent! Vous êtes un expert de la cuisine sénégalaise!\n✅ +2 points ajoutés à votre compte!`;
+        } else if (pointsFidelite === 1) {
+          message += `👍 Bien joué! Vous connaissez la cuisine sénégalaise!\n✅ +1 point ajouté à votre compte!`;
+        } else {
+          message += `💡 Continuez à apprendre! Venez goûter nos plats pour découvrir plus sur notre cuisine!`;
+        }
+        
+        alert(message);
+      }, 500);
+    }
+  };
+
+  // Fonction pour synchroniser les points avec le backend
+  const synchroniserPointsFidelite = async (points: number, score: number) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        console.error('Token d\'authentification manquant');
+        return;
+      }
+      
+      const response = await fetch('http://localhost:8000/api/student/points/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          points: points,
+          source: 'quiz',
+          score: score
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Erreur lors de la synchronisation des points:', response.status, errorData);
+        
+        if (response.status === 401) {
+          console.error('Session expirée. Veuillez vous reconnecter.');
+        }
+      } else {
+        const data = await response.json();
+        console.log('Points synchronisés avec succès:', data);
+      }
+    } catch (error) {
+      console.error('Erreur réseau:', error);
     }
   };
 
@@ -169,46 +165,48 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
     setQuizState({
       currentQuestion: 0,
       score: 0,
-      pointsEarned: 0,
       answered: false,
       selectedAnswer: null,
       isCorrect: null,
       quizCompleted: false,
-      timeLeft: 30
+      timeLeft: 30,
+      questions: getRandomQuestions(10) // Nouvelles questions aléatoires
     });
   };
 
-  const currentQuestion = questions[quizState.currentQuestion];
-  const progress = ((quizState.currentQuestion + 1) / questions.length) * 100;
+  const currentQuestion = quizState.questions[quizState.currentQuestion];
+  const progress = ((quizState.currentQuestion + 1) / quizState.questions.length) * 100;
 
   if (quizState.quizCompleted) {
-    const percentage = (quizState.score / questions.length) * 100;
+    const percentage = (quizState.score / quizState.questions.length) * 100;
+    const pointsFidelite = quizState.score > 5 ? 2 : quizState.score === 5 ? 1 : 0;
+    
     return (
       <div className="culinary-quiz">
         <div className="quiz-container">
         <div className="quiz-completed">
           <div className="completion-icon">
-            {percentage >= 70 ? '🎉' : percentage >= 50 ? '👍' : '📚'}
+            {quizState.score > 5 ? '🎉' : quizState.score === 5 ? '👍' : '📚'}
           </div>
           <h2>Quiz Terminé !</h2>
           <div className="final-score">
             <div className="score-item">
               <span className="score-label">Score</span>
-              <span className="score-value">{quizState.score}/{questions.length}</span>
+              <span className="score-value">{quizState.score}/{quizState.questions.length}</span>
             </div>
             <div className="score-item">
               <span className="score-label">Pourcentage</span>
               <span className="score-value">{percentage.toFixed(0)}%</span>
             </div>
             <div className="score-item highlight">
-              <span className="score-label">Points gagnés</span>
-              <span className="score-value">+{quizState.pointsEarned} pts</span>
+              <span className="score-label">Points de fidélité gagnés</span>
+              <span className="score-value">+{pointsFidelite} pts</span>
             </div>
           </div>
           <div className="completion-message">
-            {percentage >= 70 && "Excellent ! Vous êtes un vrai connaisseur de la cuisine sénégalaise ! 🌟"}
-            {percentage >= 50 && percentage < 70 && "Bien joué ! Continuez à explorer notre cuisine ! 👨‍🍳"}
-            {percentage < 50 && "Pas mal ! Venez goûter nos plats pour en apprendre plus ! 🍽️"}
+            {quizState.score > 5 && "Excellent ! Vous êtes un vrai connaisseur de la cuisine sénégalaise ! +2 points 🌟"}
+            {quizState.score === 5 && "Bien joué ! Vous connaissez la cuisine sénégalaise ! +1 point 👨‍🍳"}
+            {quizState.score < 5 && "Pas mal ! Venez goûter nos plats pour en apprendre plus ! 🍽️"}
           </div>
           <button className="restart-button" onClick={handleRestart}>
             Recommencer le Quiz
@@ -225,10 +223,10 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
       <div className="quiz-header">
         <div className="quiz-info">
           <span className="question-counter">
-            Question {quizState.currentQuestion + 1}/{questions.length}
+            Question {quizState.currentQuestion + 1}/{quizState.questions.length}
           </span>
           <span className="current-score">
-            Score: {quizState.score} | Points: {quizState.pointsEarned}
+            Score: {quizState.score}/10
           </span>
         </div>
         <div className="progress-bar">
@@ -244,7 +242,6 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
       <div className="quiz-content">
         <div className="question-card">
           <h3 className="question-text">{currentQuestion.question}</h3>
-          <div className="question-points">+{currentQuestion.points} points</div>
         </div>
 
         <div className="options-grid">
@@ -288,12 +285,12 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
             </div>
             <div className="feedback-text">
               {quizState.isCorrect 
-                ? `Bravo ! +${currentQuestion.points} points` 
+                ? 'Bravo ! Bonne réponse !' 
                 : `Dommage ! La bonne réponse était : ${currentQuestion.options[currentQuestion.correctAnswer]}`
               }
             </div>
             <button className="next-button" onClick={handleNextQuestion}>
-              {quizState.currentQuestion < questions.length - 1 ? 'Question Suivante' : 'Voir les Résultats'}
+              {quizState.currentQuestion < quizState.questions.length - 1 ? 'Question Suivante' : 'Voir les Résultats'}
             </button>
           </div>
         )}
