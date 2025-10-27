@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\UsagePromoController;
 use App\Http\Controllers\Api\FideliteController;
 use App\Http\Controllers\Api\ParrainageController;
 use App\Http\Controllers\Api\UserManagementController;
+use App\Http\Controllers\Api\DashboardController;
 
 // Route test
 Route::get('/test', function () {
@@ -149,5 +150,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/activate', [UserManagementController::class, 'activate']);
         Route::post('/{id}/suspend', [UserManagementController::class, 'suspend']);
         Route::post('/{id}/adjust-points', [UserManagementController::class, 'adjustPoints']);
+    });
+    
+    // Dashboard Admin (Admin/Manager uniquement)
+    Route::middleware('role:admin,manager')->prefix('admin/dashboard')->group(function () {
+        Route::get('/stats', [DashboardController::class, 'stats']);
+        Route::get('/performance-globale', [DashboardController::class, 'performanceGlobale']);
+        Route::get('/repartition-utilisateurs', [DashboardController::class, 'repartitionUtilisateurs']);
+        Route::get('/all', [DashboardController::class, 'all']);
     });
 });

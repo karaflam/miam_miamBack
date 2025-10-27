@@ -31,6 +31,10 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
+  // États pour les données du dashboard
+  const [dashboardData, setDashboardData] = useState(null)
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false)
+  
   // Références pour les graphiques
   const performanceChartRef = useRef(null)
   const usersChartRef = useRef(null)
@@ -795,17 +799,21 @@ useEffect(() => {
       if (chart) chart.destroy();
     });
 
-    if (activeTab === 'dashboard') {
+    if (activeTab === 'dashboard' && dashboardData) {
       // Graphique de performance
-      if (performanceChartRef.current) {
+      if (performanceChartRef.current && dashboardData.performance_globale) {
+        const labels = dashboardData.performance_globale.map(item => item.mois);
+        const caData = dashboardData.performance_globale.map(item => item.chiffre_affaire);
+        const commandesData = dashboardData.performance_globale.map(item => item.commandes);
+
         chartInstances.current.performance = new Chart(performanceChartRef.current, {
           type: 'line',
           data: {
-            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
+            labels: labels,
             datasets: [
               {
                 label: 'Chiffre d\'affaires (F)',
-                data: [320000, 380000, 420000, 410000, 450000, 480000],
+                data: caData,
                 borderColor: '#cfbd97',
                 backgroundColor: 'rgba(207, 189, 151, 0.1)',
                 tension: 0.4,
@@ -813,7 +821,7 @@ useEffect(() => {
               },
               {
                 label: 'Commandes',
-                data: [280, 320, 360, 340, 380, 420],
+                data: commandesData,
                 borderColor: '#3b82f6',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 tension: 0.4,
@@ -839,26 +847,55 @@ useEffect(() => {
       }
 
       // Graphique utilisateurs
-      if (usersChartRef.current) {
-        chartInstances.current.users = new Chart(usersChartRef.current, {
-          type: 'doughnut',
-          data: {
-            labels: ['Étudiants', 'Employés', 'Managers', 'Admins'],
-            datasets: [{
-              data: [1847, 542, 98, 20],
-              backgroundColor: ['#cfbd97', '#3b82f6', '#10b981', '#f59e0b'],
-              borderWidth: 0
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'bottom'
+      if (usersChartRef.current && dashboardData.repartition_utilisateurs) {
+        const repartition = dashboardData.repartition_utilisateurs;
+        
+        console.log('📊 Répartition utilisateurs:', repartition);
+        console.log('📊 Données graphique:', [
+          repartition.etudiants?.count || 0,
+          repartition.employes?.count || 0,
+          repartition.managers?.count || 0,
+          repartition.admins?.count || 0
+        ]);
+        
+        const chartData = [
+          repartition.etudiants?.count || 0,
+          repartition.employes?.count || 0,
+          repartition.managers?.count || 0,
+          repartition.admins?.count || 0
+        ];
+        
+        // Vérifier qu'il y a au moins une donnée non nulle
+        const hasData = chartData.some(val => val > 0);
+        
+        if (hasData) {
+          chartInstances.current.users = new Chart(usersChartRef.current, {
+            type: 'doughnut',
+            data: {
+              labels: ['Étudiants', 'Employés', 'Managers', 'Admins'],
+              datasets: [{
+                data: chartData,
+                backgroundColor: ['#cfbd97', '#3b82f6', '#10b981', '#f59e0b'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom'
+                }
               }
             }
-          }
+          });
+        } else {
+          console.warn('⚠️ Aucune donnée pour le graphique de répartition');
+        }
+      } else {
+        console.warn('⚠️ Graphique répartition: ref ou données manquantes', {
+          hasRef: !!usersChartRef.current,
+          hasData: !!dashboardData.repartition_utilisateurs
         });
       }
     }
@@ -868,7 +905,7 @@ useEffect(() => {
         if (chart) chart.destroy();
       });
     };
-  }, [activeTab]);
+  }, [activeTab, dashboardData]);
 
   // Raccourci clavier pour basculer la sidebar
   useEffect(() => {
@@ -1030,6 +1067,57 @@ useEffect(() => {
   useEffect(() => {
     if (activeTab === "users") {
       fetchUsers();
+    }
+  }, [activeTab]);
+
+  // Fonction pour récupérer les données du dashboard
+  const fetchDashboardData = async () => {
+    setIsLoadingDashboard(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        console.error('Aucun token trouvé');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/admin/dashboard/all', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.error('Session expirée');
+          return;
+        }
+        throw new Error(`Erreur ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setDashboardData(result.data);
+        console.log('✅ Données dashboard récupérées:', result.data);
+      }
+    } catch (error) {
+      console.error('Erreur dashboard:', error);
+    } finally {
+      setIsLoadingDashboard(false);
+    }
+  };
+
+  // Charger les données du dashboard au montage et quand on revient sur l'onglet dashboard
+  useEffect(() => {
+    if (activeTab === "dashboard") {
+      fetchDashboardData();
+      
+      // Rafraîchir toutes les 30 secondes
+      const interval = setInterval(fetchDashboardData, 30000);
+      return () => clearInterval(interval);
     }
   }, [activeTab]);
 
@@ -1220,29 +1308,89 @@ useEffect(() => {
 
             {/* Global KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {[
-                { label: 'Utilisateurs Totaux', value: '2,847', change: '+18% ce mois', icon: Users, color: 'text-primary' },
-                { label: 'CA Total', value: '478,920 F', change: '+24% ce mois', icon: BarChart3, color: 'text-green-500' },
-                { label: 'Commandes Totales', value: '5,234', change: '+12% ce mois', icon: Tag, color: 'text-blue-500' },
-                { label: 'Plats Actifs', value: '24', change: 'Stable', icon: Tag, color: 'text-black' }
-              ].map((kpi, index) => (
-                <FadeInOnScroll key={index} delay={index * 150}>
-                  <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-muted-foreground text-sm font-medium">{kpi.label}</p>
-                        <p className="text-2xl lg:text-3xl font-bold text-black mt-1">{kpi.value}</p>
-                        <p className="text-green-500 text-sm mt-1">
-                          ↗ {kpi.change}
-                        </p>
-                      </div>
-                      <div className={`w-12 h-12 bg-muted rounded-lg flex items-center justify-center`}>
-                        <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
+              {isLoadingDashboard ? (
+                // Skeleton loading
+                [1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white rounded-xl shadow-lg p-6 animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                  </div>
+                ))
+              ) : dashboardData ? (
+                [
+                  { 
+                    label: 'Utilisateurs Totaux', 
+                    value: dashboardData.stats?.utilisateurs_totaux?.total?.toLocaleString() || '0', 
+                    change: dashboardData.stats?.utilisateurs_totaux?.label || '', 
+                    icon: Users, 
+                    color: 'text-primary' 
+                  },
+                  { 
+                    label: 'CA Total', 
+                    value: `${dashboardData.stats?.chiffre_affaire_total?.total?.toLocaleString() || '0'} F`, 
+                    change: dashboardData.stats?.chiffre_affaire_total?.label || '', 
+                    icon: BarChart3, 
+                    color: 'text-green-500' 
+                  },
+                  { 
+                    label: 'Commandes Totales', 
+                    value: dashboardData.stats?.commandes_totales?.total?.toLocaleString() || '0', 
+                    change: dashboardData.stats?.commandes_totales?.label || '', 
+                    icon: Tag, 
+                    color: 'text-blue-500' 
+                  },
+                  { 
+                    label: 'Plats Actifs', 
+                    value: dashboardData.stats?.plats_actifs?.total?.toString() || '0', 
+                    change: dashboardData.stats?.plats_actifs?.statut || 'Stable', 
+                    icon: Package, 
+                    color: 'text-black' 
+                  }
+                ].map((kpi, index) => (
+                  <FadeInOnScroll key={index} delay={index * 150}>
+                    <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-muted-foreground text-sm font-medium">{kpi.label}</p>
+                          <p className="text-2xl lg:text-3xl font-bold text-black mt-1">{kpi.value}</p>
+                          <p className={`text-sm mt-1 ${kpi.change.includes('+') ? 'text-green-500' : kpi.change.includes('-') ? 'text-red-500' : 'text-gray-500'}`}>
+                            {kpi.change.includes('+') && '↗ '}
+                            {kpi.change.includes('-') && '↘ '}
+                            {kpi.change}
+                          </p>
+                        </div>
+                        <div className={`w-12 h-12 bg-muted rounded-lg flex items-center justify-center`}>
+                          <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </FadeInOnScroll>
-              ))}
+                  </FadeInOnScroll>
+                ))
+              ) : (
+                // Données par défaut si pas encore chargées
+                [
+                  { label: 'Utilisateurs Totaux', value: '0', change: 'Chargement...', icon: Users, color: 'text-primary' },
+                  { label: 'CA Total', value: '0 F', change: 'Chargement...', icon: BarChart3, color: 'text-green-500' },
+                  { label: 'Commandes Totales', value: '0', change: 'Chargement...', icon: Tag, color: 'text-blue-500' },
+                  { label: 'Plats Actifs', value: '0', change: 'Chargement...', icon: Package, color: 'text-black' }
+                ].map((kpi, index) => (
+                  <FadeInOnScroll key={index} delay={index * 150}>
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-muted-foreground text-sm font-medium">{kpi.label}</p>
+                          <p className="text-2xl lg:text-3xl font-bold text-black mt-1">{kpi.value}</p>
+                          <p className="text-gray-500 text-sm mt-1">{kpi.change}</p>
+                        </div>
+                        <div className={`w-12 h-12 bg-muted rounded-lg flex items-center justify-center`}>
+                          <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
+                        </div>
+                      </div>
+                    </div>
+                  </FadeInOnScroll>
+                ))
+              )}
             </div>
 
             {/* Quick Actions */}

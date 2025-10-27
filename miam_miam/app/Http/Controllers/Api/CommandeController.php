@@ -133,7 +133,7 @@ class CommandeController extends Controller
                     if ($stock->quantite_disponible <= 0) {
                         $menu = Menu::find($article['id']);
                         if ($menu) {
-                            $menu->disponible = false;
+                            $menu->disponible = 'non';
                             $menu->save();
                         }
                     }

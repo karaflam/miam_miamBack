@@ -43,11 +43,11 @@ class StockController extends Controller
 
         // Mettre à jour automatiquement la disponibilité de l'article
         if ($stock->quantite_disponible <= 0) {
-            $article->disponible = false;
+            $article->disponible = 'non';
             $article->save();
-        } else if ($stock->quantite_disponible > 0 && !$article->disponible) {
+        } else if ($stock->quantite_disponible > 0 && $article->disponible === 'non') {
             // Réactiver l'article si le stock est reconstitué
-            $article->disponible = true;
+            $article->disponible = 'oui';
             $article->save();
         }
 
@@ -110,11 +110,11 @@ class StockController extends Controller
 
         // Mettre à jour automatiquement la disponibilité de l'article
         if ($stock->quantite_disponible <= 0) {
-            $article->disponible = false;
+            $article->disponible = 'non';
             $article->save();
-        } else if ($stock->quantite_disponible > 0 && !$article->disponible) {
+        } else if ($stock->quantite_disponible > 0 && $article->disponible === 'non') {
             // Réactiver l'article si le stock est reconstitué
-            $article->disponible = true;
+            $article->disponible = 'oui';
             $article->save();
         }
 
@@ -176,7 +176,7 @@ class StockController extends Controller
 
         // Mettre à jour automatiquement la disponibilité de l'article
         if ($stock->quantite_disponible <= 0) {
-            $article->disponible = false;
+            $article->disponible = 'non';
             $article->save();
         }
 
