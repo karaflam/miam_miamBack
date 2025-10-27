@@ -159,4 +159,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/repartition-utilisateurs', [DashboardController::class, 'repartitionUtilisateurs']);
         Route::get('/all', [DashboardController::class, 'all']);
     });
+    
+    // Top 10 clients (accessible à tous les utilisateurs authentifiés)
+    Route::get('/top10-clients', [DashboardController::class, 'top10Clients']);
 });

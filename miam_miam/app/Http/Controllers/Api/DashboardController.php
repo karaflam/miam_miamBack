@@ -302,4 +302,68 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Top 10 des clients du mois (pour dashboard étudiant)
+     */
+    public function top10Clients(): JsonResponse
+    {
+        try {
+            $moisActuel = Carbon::now()->month;
+            $anneeActuelle = Carbon::now()->year;
+
+            // Récupérer les 10 meilleurs clients du mois en cours
+            $topClients = User::select(
+                'users.id_utilisateur',
+                'users.nom',
+                'users.prenom',
+                'users.email',
+                'users.point_fidelite',
+                DB::raw('COALESCE(SUM(commandes.montant_final), 0) as total_depense'),
+                DB::raw('COUNT(commandes.id_commande) as nombre_commandes')
+            )
+            ->leftJoin('commandes', 'users.id_utilisateur', '=', 'commandes.id_utilisateur')
+            ->whereMonth('commandes.date_commande', $moisActuel)
+            ->whereYear('commandes.date_commande', $anneeActuelle)
+            ->where('commandes.statut_commande', '!=', 'annulee')
+            ->groupBy('users.id_utilisateur', 'users.nom', 'users.prenom', 'users.email', 'users.point_fidelite')
+            ->orderByDesc('total_depense')
+            ->limit(10)
+            ->get();
+
+            // Ajouter le rang
+            $topClients = $topClients->map(function($client, $index) {
+                return [
+                    'rang' => $index + 1,
+                    'id' => $client->id_utilisateur,
+                    'nom' => $client->nom,
+                    'prenom' => $client->prenom,
+                    'email' => $client->email,
+                    'points_fidelite' => $client->point_fidelite ?? 0,
+                    'total_depense' => (float) $client->total_depense,
+                    'nombre_commandes' => (int) $client->nombre_commandes,
+                    'nom_complet' => $client->prenom . ' ' . $client->nom
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'top_clients' => $topClients,
+                    'mois' => Carbon::now()->locale('fr')->translatedFormat('F Y')
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur top 10 clients:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération du top 10',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

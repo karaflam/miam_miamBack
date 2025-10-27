@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext"
 import { referralService } from "../services/api"
 import Blackjack from "../../components/student/Game/blackjack/Blackjack"
 import CulinaryQuiz from "../../components/student/Game/Quiz/CulinaryQuiz"
+import Top10Clients from "../components/student/Top10Clients"
 import {
   Wallet,
   Award,
@@ -25,6 +26,7 @@ import {
   Loader2,
   AlertCircle,
   User,
+  Trophy,
 } from "lucide-react"
 
 export default function StudentDashboard() {
@@ -583,6 +585,7 @@ export default function StudentDashboard() {
             {[
               { id: "menu", label: "Menu", icon: ShoppingCart },
               { id: "history", label: "Historique", icon: History },
+              { id: "top10", label: "Top 10", icon: Trophy },
               { id: "reclamations", label: "Réclamations", icon: MessageSquare },
               { id: "referral", label: "Parrainage", icon: Gift },
               { id: "games", label: "Mini-jeux", icon: Gamepad2 },
@@ -1108,6 +1111,10 @@ export default function StudentDashboard() {
                   ))
                 )}
               </div>
+            )}
+
+            {activeTab === "top10" && (
+              <Top10Clients />
             )}
 
             {activeTab === "games" && (

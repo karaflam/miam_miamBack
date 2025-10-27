@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { mockTopCustomers } from "../data/mockData"
-import { Trophy, Tag, ArrowRight, Loader2 } from "lucide-react"
+import { Trophy, Tag, ArrowRight, Loader2, Star, Crown, Medal, Award } from "lucide-react"
 import CustomCarousel from "../components/CustomCarousel"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function HomePage() {
   const [menuItems, setMenuItems] = useState([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(false)
+  const [topClients, setTopClients] = useState([])
+  const [isLoadingTop10, setIsLoadingTop10] = useState(false)
 
   useEffect(() => {
     fetchMenuItems();
+    fetchTop10();
   }, []);
 
   const fetchMenuItems = async () => {
@@ -28,6 +30,41 @@ export default function HomePage() {
       console.error('Erreur menu:', error);
     } finally {
       setIsLoadingMenu(false);
+    }
+  };
+
+  const fetchTop10 = async () => {
+    setIsLoadingTop10(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/top10-clients', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setTopClients(result.data.top_clients.slice(0, 5)); // Top 5 pour la home
+      }
+    } catch (error) {
+      console.error('Erreur top 10:', error);
+    } finally {
+      setIsLoadingTop10(false);
+    }
+  };
+
+  const getRankIcon = (rang) => {
+    switch (rang) {
+      case 1:
+        return <Crown className="w-6 h-6 text-yellow-500" />;
+      case 2:
+        return <Medal className="w-6 h-6 text-gray-400" />;
+      case 3:
+        return <Award className="w-6 h-6 text-amber-600" />;
+      default:
+        return <span className="text-lg font-bold text-gray-600">#{rang}</span>;
     }
   };
 
@@ -127,32 +164,47 @@ export default function HomePage() {
               <h2 className="text-3xl font-bold">Top Clients du Mois</h2>
             </div>
           </FadeInOnScroll>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            {mockTopCustomers.map((customer, index) => (
-              <FadeInOnScroll key={customer.id} delay={index * 120}>
-                <div className="bg-muted rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 hover:scale-105">
-                  <div className="relative inline-block mb-4">
-                    <img
-                      src={customer.avatar || "/placeholder.svg"}
-                      alt={customer.name}
-                      className="w-20 h-20 rounded-full mx-auto transition-transform duration-300 hover:scale-110"
-                    />
-                    {index < 3 && (
-                      <div
-                        className={`absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold animate-pulse ${
-                          index === 0 ? "bg-warning" : index === 1 ? "bg-muted-foreground" : "bg-primary"
-                        }`}
-                      >
-                        {index + 1}
+          {isLoadingTop10 ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : topClients.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <Trophy className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="text-lg">Aucune commande ce mois-ci</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              {topClients.map((client, index) => (
+                <FadeInOnScroll key={client.id} delay={index * 120}>
+                  <div className={`
+                    bg-muted rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 hover:scale-105
+                    ${client.rang <= 3 ? 'border-2 border-primary/30' : ''}
+                  `}>
+                    <div className="relative inline-block mb-4">
+                      <div className="w-20 h-20 rounded-full mx-auto bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-2xl font-bold">
+                        {client.prenom.charAt(0)}{client.nom.charAt(0)}
                       </div>
-                    )}
+                      <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-lg">
+                        {getRankIcon(client.rang)}
+                      </div>
+                    </div>
+                    <h3 className="font-bold mb-1 text-gray-900">{client.nom_complet}</h3>
+                    <div className="flex items-center justify-center gap-1 text-yellow-600 mb-2">
+                      <Star className="w-4 h-4 fill-yellow-500" />
+                      <span className="font-semibold">{client.points_fidelite} pts</span>
+                    </div>
+                    <div className="text-primary font-bold text-sm">
+                      {client.total_depense.toLocaleString()} F
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {client.nombre_commandes} commande{client.nombre_commandes > 1 ? 's' : ''}
+                    </div>
                   </div>
-                  <h3 className="font-bold mb-2">{customer.name}</h3>
-                  <div className="text-primary font-bold text-lg">{customer.points} points</div>
-                </div>
-              </FadeInOnScroll>
-            ))}
-          </div>
+                </FadeInOnScroll>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
