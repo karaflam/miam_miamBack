@@ -64,10 +64,72 @@ class EmployeSeeder extends Seeder
             );
         }
 
+        // Employés supplémentaires
+        $employesSupplementaires = [
+            [
+                'nom' => 'Kouam',
+                'prenom' => 'Serge',
+                'email' => 'serge.kouam@miammiam.cm',
+                'telephone' => '237670111222',
+                'id_role' => $roleEmploye->id_role,
+                'mot_de_passe' => Hash::make('password'),
+                'actif' => 'oui',
+                'date_embauche' => now()->subMonths(8),
+            ],
+            [
+                'nom' => 'Nkoa',
+                'prenom' => 'Brigitte',
+                'email' => 'brigitte.nkoa@miammiam.cm',
+                'telephone' => '237672333444',
+                'id_role' => $roleEmploye->id_role,
+                'mot_de_passe' => Hash::make('password'),
+                'actif' => 'oui',
+                'date_embauche' => now()->subMonths(6),
+            ],
+            [
+                'nom' => 'Tagne',
+                'prenom' => 'Paul',
+                'email' => 'paul.tagne@miammiam.cm',
+                'telephone' => '237675555666',
+                'id_role' => $roleEmploye->id_role,
+                'mot_de_passe' => Hash::make('password'),
+                'actif' => 'oui',
+                'date_embauche' => now()->subMonths(4),
+            ],
+            [
+                'nom' => 'Essomba',
+                'prenom' => 'Henriette',
+                'email' => 'henriette.essomba@miammiam.cm',
+                'telephone' => '237677777888',
+                'id_role' => $roleGerant->id_role,
+                'mot_de_passe' => Hash::make('password'),
+                'actif' => 'oui',
+                'date_embauche' => now()->subMonths(10),
+            ],
+            [
+                'nom' => 'Djoumessi',
+                'prenom' => 'Alain',
+                'email' => 'alain.djoumessi@miammiam.cm',
+                'telephone' => '237680999000',
+                'id_role' => $roleEmploye->id_role,
+                'mot_de_passe' => Hash::make('password'),
+                'actif' => 'oui',
+                'date_embauche' => now()->subMonths(3),
+            ],
+        ];
+
+        foreach ($employesSupplementaires as $employe) {
+            Employe::firstOrCreate(
+                ['email' => $employe['email']],
+                $employe
+            );
+        }
+
         $this->command->info('Employés de test créés avec succès!');
         $this->command->info('Comptes disponibles:');
         $this->command->info('- Employé: employee@test.com / password');
         $this->command->info('- Manager: manager@test.com / password');
         $this->command->info('- Admin: admin@test.com / password');
+        $this->command->info('+ 5 employés supplémentaires camerounais');
     }
 }
