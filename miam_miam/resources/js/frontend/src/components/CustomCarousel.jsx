@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const carouselItems = [
   {
-    image: "https://images.unsplash.com/photo-1598866594230-a7c12756260f?w=1200&h=800&fit=crop&crop=center",
+    image: "https://scontent-los2-1.xx.fbcdn.net/v/t1.6435-9/93933277_2459780187667742_5303570301664100352_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=833d8c&_nc_ohc=Q7nr0ZgjKysQ7kNvwE1TF8F&_nc_oc=AdmIP1xNsmbbHlNmgtWUBOpJIQ2Ir37ga6m19IERe7wF9V7IT1wpz-Kn5v3PdsregFE&_nc_zt=23&_nc_ht=scontent-los2-1.xx&_nc_gid=DgpqlUmM-zmXQ3EoXu7gCw&oh=00_AfcxtT8sFOYrXAWdvkfv4zll2R09gEGMUM9CwLQmNBUGew&oe=6926802E",
     title: "Ndolé Traditionnel,",
     subtitle: "Spécialité Camerounaise",
   },
@@ -14,7 +14,7 @@ const carouselItems = [
     subtitle: "Saveurs Authentiques",
   },
   {
-    image: "https://media.istockphoto.com/id/1049262176/fr/photo/dessus-de-table-de-la-cuisine-avec-des-sauces-traditionnelles-et-alimentaire-en-afrique-avec.webp?a=1&b=1&s=612x612&w=0&k=20&c=FS7G9GwUt7jFWQ95TA7QLRWlhfSL8b5rEVFpml3rC98=",
+    image: "https://s3-eu-west-1.amazonaws.com/images-ca-1-0-1-eu/tag_photos/original/27508/cuisine-camerounaise-flickr-8164269377_1036295a4a_k.jpg",
     title: "Cuisine Camerounaise,",
     subtitle: "Tradition & Modernité",
   },
