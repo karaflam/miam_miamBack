@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { Trophy, Tag, ArrowRight, Loader2, Star, Crown, Medal, Award } from "lucide-react"
+import { Trophy, Tag, ArrowRight, Loader2, Star, Crown, Medal, Award, Calendar, Gift, MapPin } from "lucide-react"
 import CustomCarousel from "../components/CustomCarousel"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
@@ -8,11 +8,13 @@ export default function HomePage() {
   const [menuItems, setMenuItems] = useState([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(false)
   const [topClients, setTopClients] = useState([])
-  const [isLoadingTop10, setIsLoadingTop10] = useState(false)
+  const [promotions, setPromotions] = useState([])
+  const [evenements, setEvenements] = useState([])
+  const [isLoadingHomeData, setIsLoadingHomeData] = useState(false)
 
   useEffect(() => {
     fetchMenuItems();
-    fetchTop10();
+    fetchHomeData();
   }, []);
 
   const fetchMenuItems = async () => {
@@ -33,25 +35,25 @@ export default function HomePage() {
     }
   };
 
-  const fetchTop10 = async () => {
-    setIsLoadingTop10(true);
+  const fetchHomeData = async () => {
+    setIsLoadingHomeData(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/top10-clients', {
+      const response = await fetch('http://localhost:8000/api/home-data', {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
 
       const result = await response.json();
       if (result.success) {
-        setTopClients(result.data.top_clients.slice(0, 5)); // Top 5 pour la home
+        setTopClients(result.data.top_clients?.slice(0, 5) || []); // Top 5 pour la home
+        setPromotions(result.data.promotions_actives || []);
+        setEvenements(result.data.evenements_a_venir?.slice(0, 4) || []); // Top 4 événements
       }
     } catch (error) {
-      console.error('Erreur top 10:', error);
+      console.error('Erreur chargement données home:', error);
     } finally {
-      setIsLoadingTop10(false);
+      setIsLoadingHomeData(false);
     }
   };
 
@@ -155,8 +157,130 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Top Customers Section */}
+      {/* Promotions Section */}
+      <section className="py-16 bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeInOnScroll>
+            <div className="flex items-center gap-3 mb-8">
+              <Gift className="w-8 h-8 text-primary" />
+              <h2 className="text-3xl font-bold">Promotions Actives</h2>
+            </div>
+          </FadeInOnScroll>
+          
+          {isLoadingHomeData ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Chargement des promotions...</p>
+            </div>
+          ) : promotions.length === 0 ? (
+            <div className="text-center py-12">
+              <Gift className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400" />
+              <p className="text-muted-foreground text-lg">Aucune promotion disponible pour le moment</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {promotions.map((promo, index) => (
+                <FadeInOnScroll key={promo.id_evenement} delay={index * 100}>
+                  <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 border-2 border-primary/20">
+                    <div className="relative h-48 overflow-hidden">
+                      <img 
+                        src={promo.url_affiche} 
+                        alt={promo.titre}
+                        className="w-full h-full object-cover"
+                        onError={(e) => e.target.src = '/placeholder.svg'}
+                      />
+                      <div className="absolute top-4 right-4 bg-primary text-white px-4 py-2 rounded-full font-bold shadow-lg">
+                        -{promo.valeur_remise}%
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-xl font-bold mb-2 text-gray-900">{promo.titre}</h3>
+                      <p className="text-muted-foreground mb-4 text-sm">{promo.description}</p>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 text-primary font-semibold">
+                          <Tag className="w-4 h-4" />
+                          <span className="text-sm font-mono">{promo.code_promo}</span>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Valide jusqu'au {new Date(promo.date_fin).toLocaleDateString('fr-FR')}
+                      </div>
+                    </div>
+                  </div>
+                </FadeInOnScroll>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Events Section */}
       <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FadeInOnScroll>
+            <div className="flex items-center gap-3 mb-8">
+              <Calendar className="w-8 h-8 text-primary" />
+              <h2 className="text-3xl font-bold">Événements à Venir</h2>
+            </div>
+          </FadeInOnScroll>
+          
+          {isLoadingHomeData ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Chargement des événements...</p>
+            </div>
+          ) : evenements.length === 0 ? (
+            <div className="text-center py-12">
+              <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400" />
+              <p className="text-muted-foreground text-lg">Aucun événement prévu pour le moment</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {evenements.map((event, index) => (
+                <FadeInOnScroll key={event.id_evenement} delay={index * 100}>
+                  <div className="bg-muted rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                    <div className="relative h-48 overflow-hidden">
+                      <img 
+                        src={event.url_affiche} 
+                        alt={event.titre}
+                        className="w-full h-full object-cover"
+                        onError={(e) => e.target.src = '/placeholder.svg'}
+                      />
+                      <div className="absolute top-4 left-4 bg-secondary text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                        {event.type === 'evenement' ? 'Événement' : 'Promo'}
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-lg font-bold mb-2 text-gray-900">{event.titre}</h3>
+                      <p className="text-muted-foreground mb-4 text-sm line-clamp-2">{event.description}</p>
+                      <div className="space-y-2 text-xs text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          <span>
+                            {new Date(event.date_debut).toLocaleDateString('fr-FR')}
+                            {event.date_debut !== event.date_fin && 
+                              ` - ${new Date(event.date_fin).toLocaleDateString('fr-FR')}`
+                            }
+                          </span>
+                        </div>
+                        {event.lieu && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-primary" />
+                            <span>{event.lieu}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </FadeInOnScroll>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Top Customers Section */}
+      <section className="py-16 bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <FadeInOnScroll>
             <div className="flex items-center gap-3 mb-8">
@@ -164,7 +288,7 @@ export default function HomePage() {
               <h2 className="text-3xl font-bold">Top Clients du Mois</h2>
             </div>
           </FadeInOnScroll>
-          {isLoadingTop10 ? (
+          {isLoadingHomeData ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>

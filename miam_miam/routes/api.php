@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\FideliteController;
 use App\Http\Controllers\Api\ParrainageController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\HomeController;
 
 // Route test
 Route::get('/test', function () {
@@ -47,6 +48,12 @@ Route::get('/categories/{id}', [App\Http\Controllers\Api\CategorieMenuController
 
 // Webhook CinetPay
 Route::post('/cinetpay/notify', [PaiementController::class, 'notify']);
+
+// Routes publiques pour la home page
+Route::get('/top10-clients', [DashboardController::class, 'top10Clients']);
+Route::get('/promotions-actives', [HomeController::class, 'promotionsActives']);
+Route::get('/evenements-a-venir', [HomeController::class, 'evenementsAVenir']);
+Route::get('/home-data', [HomeController::class, 'homeData']);
 
 // Routes protégées
 Route::middleware('auth:sanctum')->group(function () {
@@ -159,7 +166,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/repartition-utilisateurs', [DashboardController::class, 'repartitionUtilisateurs']);
         Route::get('/all', [DashboardController::class, 'all']);
     });
-    
-    // Top 10 clients (accessible à tous les utilisateurs authentifiés)
-    Route::get('/top10-clients', [DashboardController::class, 'top10Clients']);
 });
