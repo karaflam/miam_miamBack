@@ -1,0 +1,21 @@
+.git
+.gitignore
+README.md
+
+# Ignorer les fichiers du sous-dossier
+miam_miam/.env
+miam_miam/.env.*
+!miam_miam/.env.example
+miam_miam/node_modules
+miam_miam/vendor
+miam_miam/storage/app/*
+miam_miam/storage/framework/cache/*
+miam_miam/storage/framework/sessions/*
+miam_miam/storage/framework/views/*
+miam_miam/storage/logs/*
+miam_miam/bootstrap/cache/*
+miam_miam/public/storage
+miam_miam/public/hot
+miam_miam/tests
+*.log
+.phpunit.result.cache
