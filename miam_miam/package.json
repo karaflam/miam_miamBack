@@ -11,6 +11,7 @@
         "@inertiajs/react": "^2.0.0",
         "@tailwindcss/forms": "^0.5.3",
         "@tailwindcss/vite": "^4.0.0",
+        "lucide-react": "^0.548.0",
         "@vitejs/plugin-react": "^4.2.0",
         "autoprefixer": "^10.4.12",
         "axios": "^1.11.0",
@@ -23,9 +24,6 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "lucide-react": "^0.548.0",
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0",
         "react-router-dom": "^7.9.4"
     },
     "engines": {
