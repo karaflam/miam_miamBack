@@ -1,5 +1,4 @@
-FROM node:18-alpine AS frontend-build
-
+FROM node:22-alpine AS frontend-build
 WORKDIR /app
 
 # ⚠️ Copier depuis le sous-dossier
