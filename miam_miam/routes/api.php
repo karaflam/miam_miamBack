@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ParrainageController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\EvenementController;
 
 // Route test
 Route::get('/test', function () {
@@ -144,6 +145,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/statistiques/top-clients', [StatistiqueController::class, 'topClients']);
     // Vérifiez que la route pointe vers le bon contrôleur
     Route::get('/usage-promo', [App\Http\Controllers\Api\UsagePromoController::class, 'index']);
+    
+    // Gestion des événements (jeux, promotions, événements)
+    // Routes publiques pour les étudiants (seuls les événements actifs sont visibles)
+    Route::get('/evenements', [EvenementController::class, 'index']);
+    Route::get('/evenements/{id}', [EvenementController::class, 'show']);
+    Route::post('/evenements/{id}/participer', [EvenementController::class, 'participer']);
+    
+    // Routes admin/manager pour la gestion des événements
+    Route::middleware('role:admin,manager')->group(function () {
+        Route::post('/evenements', [EvenementController::class, 'store']);
+        Route::put('/evenements/{id}', [EvenementController::class, 'update']);
+        Route::delete('/evenements/{id}', [EvenementController::class, 'destroy']);
+        Route::patch('/evenements/{id}/toggle', [EvenementController::class, 'toggle']);
+    });
     
     // Gestion des utilisateurs (Admin/Staff uniquement)
     Route::middleware('role:admin,employe,manager')->prefix('admin/users')->group(function () {

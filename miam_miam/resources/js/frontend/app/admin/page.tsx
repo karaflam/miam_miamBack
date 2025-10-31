@@ -32,9 +32,6 @@ export default async function AdminPage() {
 
   const totalRevenue = revenueData?.reduce((sum, order) => sum + order.totalAmount, 0) || 0
 
-  // Get promotions
-  const { data: promotions } = await supabase.from("promotions").select("*").order("createdAt", { ascending: false })
-
   return (
     <AdminDashboard
       user={profile}
@@ -44,7 +41,6 @@ export default async function AdminPage() {
         totalOrders: totalOrders || 0,
         totalRevenue,
       }}
-      promotions={promotions || []}
     />
   )
 }

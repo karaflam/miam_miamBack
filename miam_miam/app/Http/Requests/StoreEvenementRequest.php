@@ -11,7 +11,7 @@ class StoreEvenementRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true; // L'autorisation est gérée par le middleware role
     }
 
     /**

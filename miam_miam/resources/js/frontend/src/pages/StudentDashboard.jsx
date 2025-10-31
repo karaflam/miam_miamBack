@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
-import { referralService } from "../services/api"
+import { referralService, eventService } from "../services/api"
 import Blackjack from "../../components/student/Game/blackjack/Blackjack"
 import CulinaryQuiz from "../../components/student/Game/Quiz/CulinaryQuiz"
 import Top10Clients from "../components/student/Top10Clients"
@@ -27,6 +27,10 @@ import {
   AlertCircle,
   User,
   Trophy,
+  Calendar,
+  PartyPopper,
+  Tag,
+  Eye,
 } from "lucide-react"
 
 export default function StudentDashboard() {
@@ -59,6 +63,11 @@ export default function StudentDashboard() {
   const [reclamationSubject, setReclamationSubject] = useState("")
   const [reclamationDescription, setReclamationDescription] = useState("")
   const [isSubmittingReclamation, setIsSubmittingReclamation] = useState(false)
+  
+  // États pour les événements
+  const [events, setEvents] = useState([])
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+  const [selectedEventType, setSelectedEventType] = useState('all') // all, promotion, jeu, evenement
   
   // États pour le checkout
   const [isCheckingOut, setIsCheckingOut] = useState(false)
@@ -143,6 +152,37 @@ export default function StudentDashboard() {
     refreshUserData();
   }, []);
 
+  // Fonction pour charger les événements
+  const fetchEvents = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const result = await eventService.getAllEvents();
+      if (result.success) {
+        setEvents(result.data || []);
+      }
+    } catch (error) {
+      console.error('Erreur chargement événements:', error);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  // Fonction pour participer à un événement
+  const handleParticipate = async (eventId) => {
+    try {
+      const result = await eventService.participate(eventId);
+      if (result.success) {
+        alert(result.message || 'Participation enregistrée avec succès!');
+        fetchEvents(); // Recharger les événements
+      } else {
+        alert(result.error || 'Erreur lors de la participation');
+      }
+    } catch (error) {
+      console.error('Erreur participation:', error);
+      alert('Erreur lors de la participation');
+    }
+  };
+
   // Charger le menu au montage et quand les filtres changent
   useEffect(() => {
     if (activeTab === "menu") {
@@ -154,6 +194,9 @@ export default function StudentDashboard() {
     }
     if (activeTab === "reclamations") {
       fetchReclamations();
+    }
+    if (activeTab === "events" || activeTab === "games") {
+      fetchEvents();
     }
   }, [activeTab, selectedCategory, searchMenuTerm]);
 
@@ -588,6 +631,7 @@ export default function StudentDashboard() {
               { id: "top10", label: "Top 10", icon: Trophy },
               { id: "reclamations", label: "Réclamations", icon: MessageSquare },
               { id: "referral", label: "Parrainage", icon: Gift },
+              { id: "events", label: "Événements", icon: Calendar },
               { id: "games", label: "Mini-jeux", icon: Gamepad2 },
             ].map((tab) => (
               <button
@@ -1117,70 +1161,275 @@ export default function StudentDashboard() {
               <Top10Clients />
             )}
 
+            {activeTab === "events" && (
+              <div className="bg-white rounded-xl p-8 shadow-lg">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold mb-2">Événements actifs</h2>
+                  <p className="text-muted-foreground">
+                    Découvrez nos promotions, jeux et événements spéciaux
+                  </p>
+                </div>
+
+                {/* Filtres */}
+                <div className="flex gap-2 mb-6">
+                  <button
+                    onClick={() => setSelectedEventType('all')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      selectedEventType === 'all' 
+                        ? 'bg-primary text-secondary' 
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    Tous
+                  </button>
+                  <button
+                    onClick={() => setSelectedEventType('promotion')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      selectedEventType === 'promotion' 
+                        ? 'bg-primary text-secondary' 
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <Gift className="w-4 h-4 inline mr-2" />
+                    Promotions
+                  </button>
+                  <button
+                    onClick={() => setSelectedEventType('jeu')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      selectedEventType === 'jeu' 
+                        ? 'bg-primary text-secondary' 
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <Gamepad2 className="w-4 h-4 inline mr-2" />
+                    Jeux
+                  </button>
+                  <button
+                    onClick={() => setSelectedEventType('evenement')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      selectedEventType === 'evenement' 
+                        ? 'bg-primary text-secondary' 
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <PartyPopper className="w-4 h-4 inline mr-2" />
+                    Événements
+                  </button>
+                </div>
+
+                {isLoadingEvents ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Chargement des événements...</p>
+                  </div>
+                ) : (
+                  <>
+                    {(() => {
+                      const filteredEvents = selectedEventType === 'all'
+                        ? events
+                        : events.filter(event => event.type === selectedEventType);
+
+                      if (filteredEvents.length === 0) {
+                        return (
+                          <div className="text-center py-12">
+                            <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400" />
+                            <p className="text-muted-foreground text-lg">
+                              Aucun événement disponible pour le moment
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {filteredEvents.map((event) => (
+                            <div
+                              key={event.id_evenement}
+                              className="bg-gradient-to-br from-white to-muted rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200"
+                            >
+                              <div className="relative h-48 overflow-hidden">
+                                {event.url_affiche ? (
+                                  <img
+                                    src={event.url_affiche.startsWith('http') ? event.url_affiche : `http://localhost:8000${event.url_affiche}`}
+                                    alt={event.titre}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => e.target.src = '/placeholder.svg'}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                    {event.type === 'promotion' && <Gift className="w-12 h-12 text-primary" />}
+                                    {event.type === 'jeu' && <Gamepad2 className="w-12 h-12 text-primary" />}
+                                    {event.type === 'evenement' && <PartyPopper className="w-12 h-12 text-primary" />}
+                                  </div>
+                                )}
+                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold">
+                                  {event.type === 'promotion' && 'Promotion'}
+                                  {event.type === 'jeu' && 'Jeu'}
+                                  {event.type === 'evenement' && 'Événement'}
+                                </div>
+                                {event.valeur_remise && event.type_remise === 'pourcentage' && (
+                                  <div className="absolute top-4 right-4 bg-primary text-white px-4 py-2 rounded-full font-bold shadow-lg">
+                                    -{event.valeur_remise}%
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-6">
+                                <h3 className="text-xl font-bold mb-2 text-gray-900">{event.titre}</h3>
+                                {event.description && (
+                                  <p className="text-muted-foreground mb-4 text-sm line-clamp-2">
+                                    {event.description}
+                                  </p>
+                                )}
+                                <div className="space-y-2 mb-4 text-xs text-gray-600">
+                                  {event.code_promo && (
+                                    <div className="flex items-center gap-2">
+                                      <Tag className="w-4 h-4 text-primary" />
+                                      <span className="font-mono font-semibold">{event.code_promo}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-primary" />
+                                    <span>
+                                      Du {new Date(event.date_debut).toLocaleDateString('fr-FR')} au{' '}
+                                      {new Date(event.date_fin).toLocaleDateString('fr-FR')}
+                                    </span>
+                                  </div>
+                                  {event.limite_utilisation > 0 && (
+                                    <div className="text-muted-foreground">
+                                      {event.nombre_utilisation || 0} / {event.limite_utilisation} utilisations
+                                    </div>
+                                  )}
+                                </div>
+                                {event.type === 'jeu' || event.type === 'evenement' ? (
+                                  <button
+                                    onClick={() => handleParticipate(event.id_evenement)}
+                                    className="w-full bg-primary text-secondary px-4 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    Participer
+                                  </button>
+                                ) : (
+                                  <div className="text-center py-2 text-sm text-muted-foreground">
+                                    Utilisez le code promo lors de la commande
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+
             {activeTab === "games" && (
               <div className="bg-white rounded-xl p-8 shadow-lg">
-                {!activeGame ? (
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Gamepad2 className="w-10 h-10 text-primary" />
-                    </div>
-                    <h2 className="text-2xl font-bold mb-4">Mini-jeux</h2>
-                    <p className="text-muted-foreground mb-8">
-                      Jouez à nos mini-jeux et gagnez des points de fidélité supplémentaires!
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                      <div 
-                        onClick={() => setActiveGame('blackjack')}
-                        className="p-8 bg-gradient-to-br from-red-50 to-red-100 rounded-xl hover:shadow-2xl transition-all cursor-pointer border-2 border-transparent hover:border-red-400 transform hover:scale-105"
-                      >
-                        <div className="text-5xl mb-4">🃏</div>
-                        <h3 className="font-bold text-xl mb-2 text-red-700">Blackjack</h3>
-                        <p className="text-sm text-red-600 mb-3">Battez le croupier et gagnez gros!</p>
-                        <div className="flex items-center justify-center gap-2 text-sm font-semibold text-red-700">
-                          <Award className="w-4 h-4" />
-                          <span>Jusqu'à 50 points</span>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold mb-2">Mini-jeux</h2>
+                  <p className="text-muted-foreground">
+                    Jouez à nos mini-jeux configurés par l'admin et gagnez des points de fidélité supplémentaires!
+                  </p>
+                </div>
+
+                {isLoadingEvents ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Chargement des jeux...</p>
+                  </div>
+                ) : (
+                  <>
+                    {(() => {
+                      // Filtrer uniquement les jeux actifs
+                      const activeGames = events.filter(event => 
+                        event.type === 'jeu' && 
+                        event.active === 'oui' &&
+                        new Date(event.date_debut) <= new Date() &&
+                        new Date(event.date_fin) >= new Date()
+                      );
+
+                      if (activeGames.length === 0) {
+                        return (
+                          <div className="text-center py-12">
+                            <Gamepad2 className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400" />
+                            <p className="text-muted-foreground text-lg">
+                              Aucun jeu disponible pour le moment. Les jeux sont configurés par l'administrateur.
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {activeGames.map((game) => (
+                            <div
+                              key={game.id_evenement}
+                              onClick={() => handleParticipate(game.id_evenement)}
+                              className="bg-gradient-to-br from-white to-muted rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 cursor-pointer transform hover:scale-105"
+                            >
+                              <div className="relative h-48 overflow-hidden">
+                                {game.url_affiche ? (
+                                  <img
+                                    src={game.url_affiche.startsWith('http') ? game.url_affiche : `http://localhost:8000${game.url_affiche}`}
+                                    alt={game.titre}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => e.target.src = '/placeholder.svg'}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                    <Gamepad2 className="w-16 h-16 text-primary" />
+                                  </div>
+                                )}
+                                <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                  Jeu
+                                </div>
+                              </div>
+                              <div className="p-6">
+                                <h3 className="text-xl font-bold mb-2 text-gray-900">{game.titre}</h3>
+                                {game.description && (
+                                  <p className="text-muted-foreground mb-4 text-sm line-clamp-2">
+                                    {game.description}
+                                  </p>
+                                )}
+                                <div className="space-y-2 mb-4 text-xs text-gray-600">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-primary" />
+                                    <span>
+                                      Du {new Date(game.date_debut).toLocaleDateString('fr-FR')} au{' '}
+                                      {new Date(game.date_fin).toLocaleDateString('fr-FR')}
+                                    </span>
+                                  </div>
+                                  {(game.limite_utilisation ?? 0) > 0 && (
+                                    <div className="text-muted-foreground">
+                                      Max {game.limite_utilisation} partie(s) par jour
+                                    </div>
+                                  )}
+                                  {game.valeur_remise && (
+                                    <div className="flex items-center gap-2 text-primary font-semibold">
+                                      <Award className="w-4 h-4" />
+                                      <span>
+                                        {game.type_remise === 'point_bonus' 
+                                          ? `${game.valeur_remise} points bonus`
+                                          : game.type_remise === 'pourcentage'
+                                          ? `${game.valeur_remise}% de réduction`
+                                          : `${game.valeur_remise} FCFA de réduction`}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="w-full bg-primary text-secondary px-4 py-2 rounded-lg font-semibold text-center hover:bg-primary-dark transition-colors flex items-center justify-center gap-2">
+                                  <Gamepad2 className="w-4 h-4" />
+                                  Jouer
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                      <div 
-                        onClick={() => setActiveGame('quiz')}
-                        className="p-8 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl hover:shadow-2xl transition-all cursor-pointer border-2 border-transparent hover:border-purple-400 transform hover:scale-105"
-                      >
-                        <div className="text-5xl mb-4">🍽️</div>
-                        <h3 className="font-bold text-xl mb-2 text-purple-700">Quiz Culinaire</h3>
-                        <p className="text-sm text-purple-600 mb-3">Testez vos connaissances sur la cuisine sénégalaise</p>
-                        <div className="flex items-center justify-center gap-2 text-sm font-semibold text-purple-700">
-                          <Award className="w-4 h-4" />
-                          <span>Jusqu'à 23 points</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-sm text-blue-700">
-                        💡 <strong>Astuce :</strong> Accumulez des points pour débloquer des réductions exclusives !
-                      </p>
-                    </div>
-                  </div>
-                ) : activeGame === 'blackjack' ? (
-                  <div>
-                    <button
-                      onClick={() => setActiveGame(null)}
-                      className="mb-4 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      ← Retour aux jeux
-                    </button>
-                    <Blackjack />
-                  </div>
-                ) : activeGame === 'quiz' ? (
-                  <div>
-                    <button
-                      onClick={() => setActiveGame(null)}
-                      className="mb-4 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      ← Retour aux jeux
-                    </button>
-                    <CulinaryQuiz onComplete={handleGameComplete} />
-                  </div>
-                ) : null}
+                      );
+                    })()}
+                  </>
+                )}
               </div>
             )}
           </div>

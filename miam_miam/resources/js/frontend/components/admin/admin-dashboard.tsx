@@ -2,9 +2,9 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, ShoppingBag, DollarSign, Gift } from "lucide-react"
+import { Users, ShoppingBag, DollarSign, Calendar } from "lucide-react"
 import { UserManagement } from "./user-management"
-import { PromotionManagement } from "./promotion-management"
+import { EventManagement } from "./event-management"
 
 interface AdminDashboardProps {
   user: any
@@ -14,10 +14,9 @@ interface AdminDashboardProps {
     totalOrders: number
     totalRevenue: number
   }
-  promotions: any[]
 }
 
-export function AdminDashboard({ user, users, stats, promotions }: AdminDashboardProps) {
+export function AdminDashboard({ user, users, stats }: AdminDashboardProps) {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
@@ -62,9 +61,9 @@ export function AdminDashboard({ user, users, stats, promotions }: AdminDashboar
       <Tabs defaultValue="users" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="users">Gestion des utilisateurs</TabsTrigger>
-          <TabsTrigger value="promotions" className="flex items-center gap-2">
-            <Gift className="h-4 w-4" />
-            Promotions
+          <TabsTrigger value="events" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Événements (Jeux, Promotions & Événements)
           </TabsTrigger>
         </TabsList>
 
@@ -72,8 +71,8 @@ export function AdminDashboard({ user, users, stats, promotions }: AdminDashboar
           <UserManagement users={users} />
         </TabsContent>
 
-        <TabsContent value="promotions" className="mt-6">
-          <PromotionManagement promotions={promotions} />
+        <TabsContent value="events" className="mt-6">
+          <EventManagement />
         </TabsContent>
       </Tabs>
     </div>

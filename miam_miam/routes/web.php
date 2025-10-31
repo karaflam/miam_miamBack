@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UsagePromoController;
-use App\Http\Controllers\Api\EvenementController;
 use App\Http\Controllers\Api\StatistiqueController;
 
 Route::get('/', function () {
@@ -17,20 +16,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/usage-promos/{id}', [UsagePromoController::class, 'destroy']);
 });
 
-Route::middleware(['auth:sanctum'])->group(function () {
-    // Routes publiques (étudiants)
-    Route::get('/evenements', [EvenementController::class, 'index']);
-    Route::get('/evenements/{id}', [EvenementController::class, 'show']);
-    Route::post('/evenements/{id}/participer', [EvenementController::class, 'participer']);
-    
-    // Routes admin/manager seulement
-    Route::middleware(['role:admin,manager'])->group(function () {
-        Route::post('/evenements', [EvenementController::class, 'store']);
-        Route::put('/evenements/{id}', [EvenementController::class, 'update']);
-        Route::delete('/evenements/{id}', [EvenementController::class, 'destroy']);
-        Route::patch('/evenements/{id}/toggle', [EvenementController::class, 'toggle']);
-    });
-});
+// Les routes événements ont été déplacées vers routes/api.php
 
 // Routes pour les statistiques
 

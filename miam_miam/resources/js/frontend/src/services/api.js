@@ -413,4 +413,160 @@ export const claimService = {
   },
 }
 
+// Services d'événements (jeux, promotions, événements)
+export const eventService = {
+  /**
+   * Récupérer tous les événements
+   * Pour les étudiants : uniquement les événements actifs
+   * Pour les admins : tous les événements
+   */
+  async getAllEvents() {
+    try {
+      const response = await api.get('/evenements')
+      if (response.data) {
+        return { success: true, data: Array.isArray(response.data) ? response.data : response.data.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération des événements' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération des événements'
+      return { success: false, error: message }
+    }
+  },
+
+  /**
+   * Récupérer un événement par ID
+   * @param {number} eventId - ID de l'événement
+   */
+  async getEventById(eventId) {
+    try {
+      const response = await api.get(`/evenements/${eventId}`)
+      if (response.data) {
+        return { success: true, data: response.data }
+      }
+      return { success: false, error: 'Erreur lors de la récupération de l\'événement' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la récupération de l\'événement'
+      return { success: false, error: message }
+    }
+  },
+
+  /**
+   * Créer un nouvel événement (admin uniquement)
+   * @param {Object} eventData - Données de l'événement
+   */
+  async createEvent(eventData) {
+    try {
+      const formData = new FormData()
+      
+      // Ajouter tous les champs au FormData
+      Object.keys(eventData).forEach(key => {
+        if (key === 'affiche' && eventData[key] instanceof File) {
+          formData.append('affiche', eventData[key])
+        } else if (eventData[key] !== null && eventData[key] !== undefined) {
+          formData.append(key, eventData[key])
+        }
+      })
+
+      const response = await api.post('/evenements', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      if (response.data) {
+        return { success: true, data: response.data }
+      }
+      return { success: false, error: 'Erreur lors de la création de l\'événement' }
+    } catch (error) {
+      const message = error.response?.data?.message || error.response?.data?.error || 'Erreur lors de la création de l\'événement'
+      const errors = error.response?.data?.errors || {}
+      return { success: false, error: message, errors }
+    }
+  },
+
+  /**
+   * Mettre à jour un événement (admin uniquement)
+   * @param {number} eventId - ID de l'événement
+   * @param {Object} eventData - Données mises à jour
+   */
+  async updateEvent(eventId, eventData) {
+    try {
+      const formData = new FormData()
+      
+      // Ajouter tous les champs au FormData
+      Object.keys(eventData).forEach(key => {
+        if (key === 'affiche' && eventData[key] instanceof File) {
+          formData.append('affiche', eventData[key])
+        } else if (eventData[key] !== null && eventData[key] !== undefined) {
+          formData.append(key, eventData[key])
+        }
+      })
+
+      const response = await api.put(`/evenements/${eventId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      if (response.data) {
+        return { success: true, data: response.data }
+      }
+      return { success: false, error: 'Erreur lors de la mise à jour de l\'événement' }
+    } catch (error) {
+      const message = error.response?.data?.message || error.response?.data?.error || 'Erreur lors de la mise à jour de l\'événement'
+      const errors = error.response?.data?.errors || {}
+      return { success: false, error: message, errors }
+    }
+  },
+
+  /**
+   * Supprimer un événement (admin uniquement)
+   * @param {number} eventId - ID de l'événement
+   */
+  async deleteEvent(eventId) {
+    try {
+      const response = await api.delete(`/evenements/${eventId}`)
+      if (response.data) {
+        return { success: true, message: 'Événement supprimé avec succès' }
+      }
+      return { success: false, error: 'Erreur lors de la suppression' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la suppression'
+      return { success: false, error: message }
+    }
+  },
+
+  /**
+   * Activer/Désactiver un événement (admin uniquement)
+   * @param {number} eventId - ID de l'événement
+   */
+  async toggleEvent(eventId) {
+    try {
+      const response = await api.patch(`/evenements/${eventId}/toggle`)
+      if (response.data) {
+        return { success: true, data: response.data }
+      }
+      return { success: false, error: 'Erreur lors de la modification du statut' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la modification du statut'
+      return { success: false, error: message }
+    }
+  },
+
+  /**
+   * Participer à un événement (étudiant)
+   * @param {number} eventId - ID de l'événement
+   */
+  async participate(eventId) {
+    try {
+      const response = await api.post(`/evenements/${eventId}/participer`)
+      if (response.data.success) {
+        return { success: true, data: response.data.data, message: response.data.message }
+      }
+      return { success: false, error: response.data.message || 'Erreur lors de la participation' }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Erreur lors de la participation'
+      return { success: false, error: message }
+    }
+  },
+}
+
 export default api

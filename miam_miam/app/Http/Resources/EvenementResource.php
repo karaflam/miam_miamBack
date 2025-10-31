@@ -16,37 +16,20 @@ class EvenementResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id_evenement' => $this->id_evenement,
+            'code_promo' => $this->code_promo,
             'titre' => $this->titre,
             'description' => $this->description,
             'type' => $this->type,
+            'type_remise' => $this->type_remise,
+            'valeur_remise' => $this->valeur_remise,
             'url_affiche' => $this->url_affiche ? asset($this->url_affiche) : null,
-            'date_debut' => $this->date_debut->format('Y-m-d H:i:s'),
-            'date_fin' => $this->date_fin->format('Y-m-d H:i:s'),
+            'date_debut' => $this->date_debut ? $this->date_debut->format('Y-m-d') : null,
+            'date_fin' => $this->date_fin ? $this->date_fin->format('Y-m-d') : null,
             'active' => $this->active,
-            'participants_max' => $this->participants_max,
-            'points_recompense' => $this->points_recompense,
-            'reduction_recompense' => $this->reduction_recompense,
-            'article_gratuit' => $this->article_gratuit,
-            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
-            
-            // Relations conditionnelles
-            'createur' => $this->whenLoaded('createur', function () {
-                return [
-                    'id' => $this->createur->id,
-                    'nom' => $this->createur->name,
-                    'email' => $this->createur->email
-                ];
-            }),
-            
-            'nombre_participants' => $this->whenLoaded('participants', function () {
-                return $this->participants->count();
-            }, 0),
-            
-            'est_complet' => $this->when($this->participants_max, function () {
-                return $this->participants->count() >= $this->participants_max;
-            }, false),
+            'limite_utilisation' => $this->limite_utilisation,
+            'nombre_utilisation' => $this->nombre_utilisation,
+            'date_creation' => $this->date_creation ? $this->date_creation->format('Y-m-d H:i:s') : null,
         ];
     }
 }

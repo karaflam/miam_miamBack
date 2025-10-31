@@ -47,8 +47,15 @@ export default function HomePage() {
       const result = await response.json();
       if (result.success) {
         setTopClients(result.data.top_clients?.slice(0, 5) || []); // Top 5 pour la home
-        setPromotions(result.data.promotions_actives || []);
-        setEvenements(result.data.evenements_a_venir?.slice(0, 4) || []); // Top 4 événements
+        
+        // Les promotions actives sont des événements de type 'promotion' avec active='oui'
+        // EvenementResource::collection retourne un tableau directement
+        const promotionsData = result.data.promotions_actives;
+        setPromotions(Array.isArray(promotionsData) ? promotionsData : []);
+        
+        // Les événements à venir sont des événements de type 'evenement' avec active='oui'
+        const evenementsData = result.data.evenements_a_venir;
+        setEvenements(Array.isArray(evenementsData) ? evenementsData : []);
       }
     } catch (error) {
       console.error('Erreur chargement données home:', error);
@@ -184,14 +191,16 @@ export default function HomePage() {
                   <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 border-2 border-primary/20">
                     <div className="relative h-48 overflow-hidden">
                       <img 
-                        src={promo.url_affiche} 
+                        src={promo.url_affiche ? (promo.url_affiche.startsWith('http') ? promo.url_affiche : `http://localhost:8000${promo.url_affiche}`) : '/placeholder.svg'} 
                         alt={promo.titre}
                         className="w-full h-full object-cover"
                         onError={(e) => e.target.src = '/placeholder.svg'}
                       />
-                      <div className="absolute top-4 right-4 bg-primary text-white px-4 py-2 rounded-full font-bold shadow-lg">
-                        -{promo.valeur_remise}%
-                      </div>
+                      {promo.valeur_remise && promo.type_remise === 'pourcentage' && (
+                        <div className="absolute top-4 right-4 bg-primary text-white px-4 py-2 rounded-full font-bold shadow-lg">
+                          -{promo.valeur_remise}%
+                        </div>
+                      )}
                     </div>
                     <div className="p-6">
                       <h3 className="text-xl font-bold mb-2 text-gray-900">{promo.titre}</h3>
@@ -241,13 +250,13 @@ export default function HomePage() {
                   <div className="bg-muted rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                     <div className="relative h-48 overflow-hidden">
                       <img 
-                        src={event.url_affiche} 
+                        src={event.url_affiche ? (event.url_affiche.startsWith('http') ? event.url_affiche : `http://localhost:8000${event.url_affiche}`) : '/placeholder.svg'} 
                         alt={event.titre}
                         className="w-full h-full object-cover"
                         onError={(e) => e.target.src = '/placeholder.svg'}
                       />
                       <div className="absolute top-4 left-4 bg-secondary text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                        {event.type === 'evenement' ? 'Événement' : 'Promo'}
+                        Événement
                       </div>
                     </div>
                     <div className="p-6">
@@ -263,10 +272,10 @@ export default function HomePage() {
                             }
                           </span>
                         </div>
-                        {event.lieu && (
+                        {event.code_promo && (
                           <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-primary" />
-                            <span>{event.lieu}</span>
+                            <Tag className="w-4 h-4 text-primary" />
+                            <span className="font-mono">{event.code_promo}</span>
                           </div>
                         )}
                       </div>
