@@ -1,0 +1,187 @@
+@startuml Sequence_Gestion_Commande_Staff
+title Diagramme de Séquence - Gestion Commande par le Staff
+
+actor "Employé" as employe
+actor "Étudiant" as etudiant
+participant "Frontend\nStaff" as frontend
+participant "API Laravel\nBackend" as backend
+participant "Base de\nDonnées" as bdd
+participant "Service\nEmail" as email
+
+autonumber
+
+== Connexion Staff ==
+employe -> frontend : Se connecte
+frontend -> backend : POST /api/staff/login\n{email, password}
+backend -> bdd : SELECT * FROM users\nWHERE email = X\nAND role IN ('employee', 'manager')
+alt Identifiants valides
+    bdd --> backend : Données utilisateur
+    backend -> backend : Génère token Sanctum
+    backend -> bdd : INSERT INTO personal_access_tokens
+    backend -> bdd : INSERT INTO activites\n(id_employe, type: 'connexion',\nip_address)
+    backend --> frontend : {token, user, role}
+    frontend --> employe : Accès dashboard staff
+else Identifiants invalides
+    backend --> frontend : {error: 'Identifiants incorrects'}
+    frontend --> employe : Message erreur
+end
+
+== Consultation Commandes en Cours ==
+employe -> frontend : Accède "Commandes du jour"
+frontend -> backend : GET /api/staff/commandes?date=today
+activate backend
+backend -> bdd : SELECT commandes\nWHERE DATE(date_commande) = CURDATE()\nAND statut != 'livree'\nORDER BY heure_arrivee ASC
+bdd --> backend : Liste 15 commandes
+backend --> frontend : JSON commandes avec détails
+deactivate backend
+frontend --> employe : Affiche tableau commandes\n(statut, heure, articles)
+
+== Traitement d'une Commande ==
+employe -> frontend : Sélectionne commande\n"CMD-20241101-0045"
+frontend -> backend : GET /api/staff/commandes/45
+backend -> bdd : SELECT commande\nWITH details, user, paiement
+bdd --> backend : Détails complets
+backend --> frontend : JSON commande complète
+frontend --> employe : Affiche détails:\n- Client: Jean Dupont\n- Articles: 2x Poulet DG, 1x Jus\n- Heure: 13h00\n- Type: Sur place
+
+== Mise à jour Statut: En Préparation ==
+employe -> frontend : Clique "Commencer préparation"
+frontend -> backend : PATCH /api/staff/commandes/45/status\n{statut: 'en_preparation'}
+
+activate backend
+backend -> backend : Vérifie autorisation\n(middleware role:employee,manager)
+
+backend -> bdd : UPDATE commandes\nSET statut = 'en_preparation',\nupdated_at = NOW()\nWHERE id_commande = 45
+
+backend -> bdd : INSERT INTO activites\n(id_employe, type: 'action_systeme',\ndescription: 'Commande 45 en préparation')
+
+' Notification client
+backend -> email : Envoie notification\n"Votre commande est en préparation"
+email --> etudiant : Email + notification app
+
+backend --> frontend : {success: true,\nnouveau_statut: 'en_preparation'}
+deactivate backend
+
+frontend --> employe : Statut mis à jour\n+ timer préparation démarre
+
+== Vérification Stock pendant Préparation ==
+employe -> frontend : Vérifie ingrédients
+frontend -> backend : GET /api/staff/stocks?article_id=12
+backend -> bdd : SELECT stocks\nWHERE id_article = 12
+bdd --> backend : {quantite: 5, unite: 'portions'}
+
+alt Stock suffisant
+    backend --> frontend : Stock OK
+    frontend --> employe : Affiche stock disponible
+else Stock bas (< seuil)
+    backend --> frontend : {alerte: 'Stock bas',\nquantite: 2}
+    frontend --> employe : Alerte stock faible\n(notification rouge)
+    
+    opt Manager connecté
+        backend -> email : Notifie manager\nstock critique
+    end
+end
+
+== Mise à jour Statut: Prête ==
+note over employe
+    Après préparation (15-20 min)
+end note
+
+employe -> frontend : Clique "Commande prête"
+frontend -> backend : PATCH /api/staff/commandes/45/status\n{statut: 'prete'}
+
+activate backend
+backend -> bdd : UPDATE commandes\nSET statut = 'prete'\nWHERE id_commande = 45
+
+' Notification client
+backend -> email : Envoie notification\n"Votre commande est prête"
+email --> etudiant : Email + SMS + notification app
+
+backend -> bdd : INSERT INTO activites\n(id_employe, description:\n'Commande 45 prête')
+
+backend --> frontend : {success: true}
+deactivate backend
+
+frontend --> employe : Statut mis à jour\n+ son notification
+
+== Remise de la Commande ==
+note over employe, etudiant
+    L'étudiant arrive pour récupérer
+end note
+
+etudiant -> employe : Présente numéro commande\n"CMD-20241101-0045"
+employe -> frontend : Recherche commande\npar numéro
+frontend -> backend : GET /api/staff/commandes/search?numero=CMD-20241101-0045
+backend -> bdd : SELECT * FROM commandes\nWHERE numero_commande = X
+bdd --> backend : Commande trouvée
+backend --> frontend : Détails commande
+frontend --> employe : Affiche commande\n+ photo client
+
+employe -> employe : Vérifie identité client
+employe -> frontend : Clique "Commande livrée"
+frontend -> backend : PATCH /api/staff/commandes/45/status\n{statut: 'livree'}
+
+activate backend
+backend -> bdd : UPDATE commandes\nSET statut = 'livree',\nupdated_at = NOW()
+
+' Attribution définitive des points
+backend -> backend : Calcule points fidélité\n(montant / 1000)
+backend -> bdd : UPDATE users\nSET points_fidelite = points_fidelite + 5\nWHERE id_user = 78
+
+backend -> bdd : INSERT INTO suivi_points\n(id_user, type: 'gain',\npoints: 5, source: 'commande',\nid_reference: 45)
+
+backend -> bdd : INSERT INTO activites\n(id_employe, description:\n'Commande 45 livrée')
+
+backend --> frontend : {success: true,\npoints_attribues: 5}
+deactivate backend
+
+frontend --> employe : Confirmation livraison\n+ points attribués au client
+
+== Gestion d'une Annulation ==
+alt Client demande annulation
+    etudiant -> employe : "Je veux annuler\nma commande"
+    
+    employe -> frontend : Vérifie statut commande
+    
+    alt Commande en_attente (annulable)
+        employe -> frontend : Clique "Annuler commande"
+        frontend -> backend : PATCH /api/staff/commandes/45/status\n{statut: 'annulee',\nraison: 'Demande client'}
+        
+        activate backend
+        backend -> bdd : UPDATE commandes\nSET statut = 'annulee'
+        
+        ' Remboursement
+        backend -> bdd : UPDATE paiements\nSET statut = 'rembourse'\nWHERE id_commande = 45
+        
+        backend -> bdd : UPDATE users\nSET solde = solde + montant_commande\nWHERE id_user = 78
+        
+        ' Restauration stocks
+        backend -> bdd : UPDATE stocks\nSET quantite = quantite + X\nFOR EACH article
+        
+        backend -> email : Envoie confirmation\nannulation + remboursement
+        
+        backend --> frontend : {success: true}
+        deactivate backend
+        
+        frontend --> employe : Annulation confirmée
+        employe --> etudiant : "Commande annulée,\nvous serez remboursé"
+        
+    else Commande en_preparation/prete (non annulable)
+        frontend --> employe : Impossible d'annuler\n(déjà en préparation)
+        employe --> etudiant : "Désolé, commande\ndéjà en cours"
+    end
+end
+
+== Statistiques de Fin de Journée ==
+note over employe
+    En fin de service
+end note
+
+employe -> frontend : Accède "Stats du jour"
+frontend -> backend : GET /api/staff/statistiques?date=today
+backend -> bdd : SELECT COUNT(*), SUM(montant_total)\nFROM commandes\nWHERE DATE(date_commande) = CURDATE()\nGROUP BY statut
+bdd --> backend : Données agrégées
+backend --> frontend : {total_commandes: 87,\nca_jour: 245000,\nlivrees: 82, annulees: 5}
+frontend --> employe : Affiche dashboard:\n- 87 commandes\n- CA: 245 000 FCFA\n- Taux succès: 94%
+
+@enduml

@@ -1,0 +1,97 @@
+@startuml State_Diagram_Commande
+title Diagramme d'États - Cycle de Vie d'une Commande
+
+[*] --> EnAttente : Commande créée\n+ Paiement validé
+
+state EnAttente {
+    EnAttente : Commande enregistrée
+    EnAttente : En attente de préparation
+    EnAttente : Notification envoyée au staff
+}
+
+EnAttente --> EnPreparation : Staff démarre\nla préparation
+
+state EnPreparation {
+    EnPreparation : Commande en cours
+    EnPreparation : Ingrédients prélevés
+    EnPreparation : Cuisson en cours
+    EnPreparation : Timer actif
+}
+
+EnPreparation --> Prete : Préparation\nterminée
+
+state Prete {
+    Prete : Commande prête
+    Prete : En attente de retrait
+    Prete : Notification client envoyée
+    Prete : Maintien au chaud
+}
+
+Prete --> Livree : Client récupère\nla commande
+
+state Livree {
+    Livree : Commande remise
+    Livree : Points fidélité attribués
+    Livree : Transaction finalisée
+}
+
+Livree --> [*]
+
+' Transitions d'annulation
+EnAttente --> Annulee : Client annule\nOU\nPaiement échoué
+EnPreparation --> Annulee : Problème stock\nOU\nForce majeure
+Prete --> Annulee : Client ne vient pas\n(après délai)
+
+state Annulee {
+    Annulee : Commande annulée
+    Annulee : Remboursement initié
+    Annulee : Stocks restaurés
+    Annulee : Points non attribués
+}
+
+Annulee --> [*]
+
+note right of EnAttente
+    Durée moyenne: 5-10 min
+    Actions:
+    - Vérification stock
+    - Impression ticket cuisine
+end note
+
+note right of EnPreparation
+    Durée moyenne: 15-25 min
+    Actions:
+    - Préparation plats
+    - Contrôle qualité
+    - Emballage
+end note
+
+note right of Prete
+    Durée max: 30 min
+    Actions:
+    - Maintien température
+    - Attente client
+    - Alerte si retard
+end note
+
+note right of Livree
+    Actions finales:
+    - Attribution points (montant/1000)
+    - Historique mis à jour
+    - Possibilité réclamation
+end note
+
+note right of Annulee
+    Causes possibles:
+    - Demande client
+    - Paiement échoué
+    - Rupture stock
+    - Non retrait (>30min)
+    
+    Actions:
+    - Remboursement automatique
+    - Email notification
+    - Restauration stocks
+end note
+
+@enduml

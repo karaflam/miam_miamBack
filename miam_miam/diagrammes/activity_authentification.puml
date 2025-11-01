@@ -1,0 +1,249 @@
+@startuml Activity_Authentification
+title Diagramme d'Activité - Processus d'Authentification
+
+|Utilisateur|
+start
+:Accède à l'application;
+
+if (Déjà connecté?) then (oui)
+  :Redirige vers dashboard
+  selon rôle;
+  stop
+else (non)
+  :Affiche page d'accueil;
+  
+  if (Possède un compte?) then (oui)
+    :Clique "Se connecter";
+    
+    |Frontend|
+    :Affiche formulaire login;
+    
+    |Utilisateur|
+    :Saisit email et password;
+    :Soumet formulaire;
+    
+    |Backend|
+    :Valide format données;
+    
+    if (Format valide?) then (oui)
+      :Recherche utilisateur
+      par email;
+      
+      if (Email existe?) then (oui)
+        :Vérifie password hashé;
+        
+        if (Password correct?) then (oui)
+          
+          if (Email vérifié?) then (oui)
+            :Génère token Sanctum;
+            :Enregistre session;
+            :Log activité connexion;
+            
+            |Frontend|
+            :Stocke token
+            dans localStorage;
+            :Stocke user
+            dans AuthContext;
+            
+            fork
+              :Charge données
+              utilisateur;
+            fork again
+              :Charge préférences;
+            fork again
+              if (Role = student?) then (oui)
+                :Charge solde
+                et points;
+              endif
+            end fork
+            
+            |Utilisateur|
+            if (Rôle?) then (student)
+              :Redirige vers
+              Dashboard Étudiant;
+              stop
+            elseif (employee) then
+              :Redirige vers
+              Dashboard Staff;
+              stop
+            elseif (manager) then
+              :Redirige vers
+              Dashboard Manager;
+              stop
+            else (admin)
+              :Redirige vers
+              Dashboard Admin;
+              stop
+            endif
+            
+          else (non vérifié)
+            |Frontend|
+            :Affiche message
+            "Vérifiez votre email";
+            :Propose renvoyer
+            email vérification;
+            
+            if (Renvoyer email?) then (oui)
+              |Backend|
+              :Génère nouveau token;
+              :Envoie email
+              vérification;
+              
+              |Utilisateur|
+              :Consulte email;
+              :Clique lien
+              vérification;
+              
+              |Backend|
+              :Vérifie token;
+              :Marque email
+              comme vérifié;
+              
+              |Utilisateur|
+              :Retourne connexion;
+            endif
+            stop
+          endif
+          
+        else (incorrect)
+          |Frontend|
+          :Affiche erreur
+          "Identifiants incorrects";
+          :Incrémente compteur
+          tentatives;
+          
+          if (Tentatives > 5?) then (oui)
+            :Bloque compte
+            temporairement (15 min);
+            :Envoie email alerte;
+            stop
+          else (non)
+            |Utilisateur|
+            :Réessaye;
+          endif
+        endif
+        
+      else (non)
+        |Frontend|
+        :Affiche erreur
+        "Email non trouvé";
+        :Propose inscription;
+        stop
+      endif
+      
+    else (non)
+      |Frontend|
+      :Affiche erreurs
+      validation;
+      stop
+    endif
+    
+  else (non - nouvel utilisateur)
+    :Clique "S'inscrire";
+    
+    |Frontend|
+    :Affiche formulaire
+    inscription;
+    
+    |Utilisateur|
+    :Remplit formulaire:
+    - Nom, Prénom
+    - Email
+    - Password
+    - Téléphone
+    - Code parrain (optionnel);
+    
+    :Soumet inscription;
+    
+    |Backend|
+    :Valide données
+    (RegisterRequest);
+    
+    if (Données valides?) then (oui)
+      
+      if (Email déjà utilisé?) then (oui)
+        |Frontend|
+        :Affiche erreur
+        "Email déjà enregistré";
+        stop
+      else (non)
+        
+        if (Code parrain saisi?) then (oui)
+          :Vérifie code parrain
+          dans BDD;
+          
+          if (Code valide?) then (oui)
+            :Marque parrainage
+            pour attribution points;
+          else (non)
+            |Frontend|
+            :Affiche avertissement
+            "Code invalide";
+            :Propose continuer
+            sans parrainage;
+            
+            if (Continuer?) then (non)
+              stop
+            endif
+          endif
+        endif
+        
+        :Hash password;
+        :Génère code parrainage
+        unique pour nouveau user;
+        :Crée utilisateur
+        (role: student);
+        
+        if (Parrainage valide?) then (oui)
+          fork
+            :Attribue 25 points
+            au filleul;
+          fork again
+            :Attribue 50 points
+            au parrain;
+          fork again
+            :Enregistre parrainage
+            dans table;
+          fork again
+            :Crée suivi_points
+            pour les 2 users;
+          end fork
+          
+          :Envoie notification
+          au parrain;
+        endif
+        
+        :Génère token
+        vérification email;
+        :Envoie email bienvenue
+        + lien vérification;
+        
+        :Génère token Sanctum
+        pour connexion auto;
+        
+        |Frontend|
+        :Stocke token;
+        :Affiche message succès;
+        
+        if (Email vérifié?) then (non)
+          :Affiche banner
+          "Vérifiez votre email";
+        endif
+        
+        |Utilisateur|
+        :Redirige vers
+        Dashboard Étudiant;
+        
+        stop
+      endif
+      
+    else (non)
+      |Frontend|
+      :Affiche erreurs
+      validation;
+      stop
+    endif
+  endif
+endif
+
+@enduml

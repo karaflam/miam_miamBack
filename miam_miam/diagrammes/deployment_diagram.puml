@@ -1,0 +1,164 @@
+@startuml Deployment_Diagram
+title Diagramme de Déploiement - Mon Miam Miam
+
+' Configuration
+skinparam componentStyle rectangle
+
+' Couche Client
+node "Appareil Client" as client {
+    component "Navigateur Web\n(Chrome, Firefox, Safari)" as browser
+    component "Application React\n(Frontend SPA)" as react {
+        artifact "index.html"
+        artifact "bundle.js"
+        artifact "styles.css"
+    }
+}
+
+' Couche Serveur Web
+node "Serveur Web\n(Nginx/Apache)" as webserver {
+    component "Nginx" as nginx {
+        artifact "nginx.conf"
+        artifact "SSL Certificate"
+    }
+}
+
+' Couche Application
+node "Serveur Application\n(PHP-FPM)" as appserver {
+    component "Laravel Backend" as laravel {
+        package "API REST" {
+            artifact "Routes API"
+            artifact "Controllers"
+            artifact "Middleware"
+        }
+        package "Services" {
+            artifact "AuthService"
+            artifact "PaiementService"
+            artifact "FideliteService"
+        }
+        package "Models" {
+            artifact "Eloquent Models"
+        }
+    }
+    
+    component "Queue Worker\n(Supervisor)" as queue {
+        artifact "Jobs"
+        artifact "Notifications"
+    }
+}
+
+' Couche Base de Données
+node "Serveur Base de Données\n(MySQL 8.0)" as dbserver {
+    database "miam_miam_db" as db {
+        storage "Tables" {
+            artifact "users"
+            artifact "commandes"
+            artifact "menus"
+            artifact "paiements"
+        }
+    }
+    
+    storage "Redis Cache" as redis {
+        artifact "Sessions"
+        artifact "Cache données"
+        artifact "Queue jobs"
+    }
+}
+
+' Couche Stockage
+node "Serveur Fichiers" as fileserver {
+    storage "Storage" as storage {
+        folder "Images Menu" as menu_images
+        folder "Images Événements" as event_images
+        folder "Uploads Users" as user_uploads
+    }
+}
+
+' Services Externes
+cloud "Services Externes" {
+    node "CinetPay API" as cinetpay {
+        component "Gateway Paiement\nMobile Money" as payment_gateway
+    }
+    
+    node "Service Email\n(SMTP)" as email {
+        component "Mailtrap/SendGrid" as smtp
+    }
+    
+    node "CDN\n(Optionnel)" as cdn {
+        component "Cloudflare" as cloudflare
+    }
+}
+
+' Relations
+browser --> nginx : HTTPS (443)
+nginx --> react : Sert fichiers statiques
+nginx --> laravel : Proxy vers API\n(Port 8000)
+
+laravel --> db : PDO/MySQL\n(Port 3306)
+laravel --> redis : Redis Client\n(Port 6379)
+laravel --> storage : Filesystem
+laravel --> cinetpay : HTTPS API Calls
+laravel --> smtp : SMTP (587)
+
+queue --> redis : Récupère jobs
+queue --> db : Accès données
+queue --> smtp : Envoie emails
+
+cloudflare -down-> nginx : Cache & CDN\n(Optionnel)
+
+note right of client
+    **Technologies:**
+    - React 18
+    - Vite
+    - Axios
+    - TailwindCSS
+    
+    **Navigateurs supportés:**
+    - Chrome 90+
+    - Firefox 88+
+    - Safari 14+
+    - Edge 90+
+end note
+
+note right of nginx
+    **Configuration:**
+    - Port 80 (HTTP) → 443 (HTTPS)
+    - SSL/TLS (Let's Encrypt)
+    - Gzip compression
+    - Rate limiting
+    - Reverse proxy vers Laravel
+end note
+
+note right of laravel
+    **Stack:**
+    - PHP 8.2+
+    - Laravel 11.x
+    - Sanctum (Auth)
+    - Intervention Image
+    
+    **Environnement:**
+    - Production: .env.production
+    - Développement: .env.local
+end note
+
+note right of db
+    **Configuration:**
+    - MySQL 8.0
+    - InnoDB Engine
+    - UTF8MB4
+    - Backups quotidiens
+    
+    **Performances:**
+    - Index optimisés
+    - Query cache
+    - Connection pooling
+end note
+
+note bottom of cinetpay
+    **API CinetPay:**
+    - Endpoint: api.cinetpay.com
+    - Méthodes: Mobile Money
+    - Orange Money, MTN, Moov
+    - Webhook callback
+end note
+
+@enduml

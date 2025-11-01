@@ -1,0 +1,161 @@
+@startuml Sequence_Utilisation_Points
+title Diagramme de Séquence - Utilisation des Points de Fidélité
+
+actor "Étudiant" as etudiant
+participant "Frontend\nReact" as frontend
+participant "API Laravel\nBackend" as backend
+participant "FideliteService" as fidelite
+participant "Base de\nDonnées" as bdd
+
+autonumber
+
+== Consultation des Points ==
+
+etudiant -> frontend : Accède "Mes points"
+frontend -> backend : GET /api/user/points
+
+activate backend
+backend -> bdd : SELECT points_fidelite,\n(SELECT SUM(points) FROM suivi_points\nWHERE id_user = X AND type = 'gain') as total_gagne,\n(SELECT SUM(ABS(points)) FROM suivi_points\nWHERE id_user = X AND type = 'utilisation') as total_utilise\nFROM users WHERE id_user = X
+
+bdd --> backend : {points_fidelite: 287,\ntotal_gagne: 350,\ntotal_utilise: 63}
+
+backend -> bdd : SELECT * FROM suivi_points\nWHERE id_user = X\nORDER BY date_transaction DESC\nLIMIT 20
+
+bdd --> backend : Historique transactions
+
+backend --> frontend : {points_actuels: 287,\nhistorique: [...],\nequivalent_fcfa: 287000}
+deactivate backend
+
+frontend --> etudiant : Affiche dashboard points:\n- Points disponibles: 287\n- Équivalent: 287 000 FCFA\n- Historique détaillé
+
+== Passage de Commande avec Points ==
+
+etudiant -> frontend : Sélectionne articles\n(Total: 8000 FCFA)
+frontend --> etudiant : Affiche panier
+
+etudiant -> frontend : Clique "Utiliser mes points"
+frontend --> etudiant : Affiche options:\n- Utiliser tous les points (287)\n- Utiliser partiellement\n- Ne pas utiliser
+
+etudiant -> frontend : Choisit utiliser 5 points\n(= 5000 FCFA de réduction)
+
+frontend -> frontend : Calcule nouveau montant:\n8000 - 5000 = 3000 FCFA
+
+frontend --> etudiant : Affiche:\n- Montant initial: 8000 FCFA\n- Réduction points: -5000 FCFA\n- Montant à payer: 3000 FCFA\n- Points restants: 282
+
+etudiant -> frontend : Confirme commande
+
+frontend -> backend : POST /api/commandes\n{articles: [...],\npoints_utilises: 5,\nmontant_initial: 8000,\nmontant_final: 3000}
+
+activate backend
+
+== Validation et Traitement ==
+
+backend -> backend : Validation données\n(CreateCommandeRequest)
+
+backend -> bdd : BEGIN TRANSACTION
+
+' Vérification des points
+backend -> bdd : SELECT points_fidelite\nFROM users\nWHERE id_user = X\nFOR UPDATE
+
+bdd --> backend : points_fidelite = 287
+
+alt Points suffisants
+    backend -> backend : Vérifie: 287 >= 5 ✓
+    
+    ' Création commande
+    backend -> bdd : INSERT INTO commandes\n(numero_commande: 'CMD-20241101-0156',\nid_user: X,\nmontant_total: 3000,\nstatut: 'en_attente')
+    
+    bdd --> backend : id_commande = 156
+    
+    ' Ajout détails
+    loop Pour chaque article
+        backend -> bdd : INSERT INTO details_commande\n(id_commande, id_article,\nquantite, prix_unitaire)
+    end
+    
+    ' Utilisation des points
+    backend -> fidelite : utiliserPoints(user, 5,\n"Réduction commande CMD-20241101-0156")
+    
+    activate fidelite
+    fidelite -> bdd : UPDATE users\nSET points_fidelite = points_fidelite - 5\nWHERE id_user = X
+    
+    fidelite -> bdd : INSERT INTO suivi_points\n(id_user: X,\ntype_transaction: 'utilisation',\npoints: -5,\nsource: 'reduction',\ndescription: 'Réduction commande CMD-20241101-0156',\nid_reference: 156)
+    
+    bdd --> fidelite : Points utilisés
+    fidelite --> backend : Success
+    deactivate fidelite
+    
+    ' Initialisation paiement pour montant réduit
+    backend -> backend : Initialise paiement\npour 3000 FCFA
+    
+    backend -> bdd : INSERT INTO paiements\n(id_commande: 156,\nid_user: X,\nmontant: 3000,\nstatut: 'en_attente')
+    
+    backend -> bdd : COMMIT TRANSACTION
+    
+    backend --> frontend : {success: true,\ncommande_id: 156,\npoints_utilises: 5,\npoints_restants: 282,\nmontant_a_payer: 3000,\npayment_url: "..."}
+    deactivate backend
+    
+    frontend --> etudiant : Confirmation:\n"5 points utilisés!\nNouveau solde: 282 points\nMontant à payer: 3000 FCFA"
+    
+    etudiant -> frontend : Procède au paiement
+    
+    note over etudiant, frontend
+        Le processus de paiement
+        continue normalement avec
+        le montant réduit (3000 FCFA)
+    end note
+    
+else Points insuffisants
+    backend -> bdd : ROLLBACK
+    backend --> frontend : {error: 'Points insuffisants',\npoints_disponibles: 287,\npoints_demandes: 300}
+    frontend --> etudiant : "Vous n'avez que 287 points\n(max 287 000 FCFA de réduction)"
+end
+
+== Après Livraison - Attribution Nouveaux Points ==
+
+note over backend, bdd
+    Quand la commande est livrée,
+    de nouveaux points sont attribués
+    sur le montant PAYÉ (pas le montant initial)
+end note
+
+backend -> fidelite : attribuerPointsCommande(commande)
+
+activate fidelite
+fidelite -> fidelite : Calcule points:\n3000 FCFA / 1000 = 3 points
+
+fidelite -> bdd : UPDATE users\nSET points_fidelite = points_fidelite + 3\nWHERE id_user = X
+
+fidelite -> bdd : INSERT INTO suivi_points\n(id_user: X,\ntype_transaction: 'gain',\npoints: 3,\nsource: 'commande',\ndescription: 'Points gagnés pour CMD-20241101-0156',\nid_reference: 156)
+
+bdd --> fidelite : Points attribués
+fidelite --> backend : 3 points attribués
+deactivate fidelite
+
+backend --> frontend : Notification:\n"+3 points gagnés!"
+
+frontend --> etudiant : "Commande livrée!\nVous avez gagné 3 points\nNouveau solde: 285 points"
+
+== Consultation Historique Détaillé ==
+
+etudiant -> frontend : Consulte historique
+frontend -> backend : GET /api/user/points/history
+
+backend -> bdd : SELECT * FROM suivi_points\nWHERE id_user = X\nORDER BY date_transaction DESC
+
+bdd --> backend : Historique complet
+
+backend --> frontend : Liste transactions
+
+frontend --> etudiant : Affiche historique:\n\n2024-11-01 14:30\n✅ +3 pts - Commande livrée\n\n2024-11-01 13:00\n❌ -5 pts - Réduction commande\n\n2024-10-28 12:15\n✅ +50 pts - Parrainage Marie\n\n2024-10-25 11:00\n✅ +8 pts - Commande livrée
+
+note right of etudiant
+    **Règles d'utilisation:**
+    - 1 point = 1000 FCFA de réduction
+    - Utilisable uniquement sur commandes
+    - Pas de limite d'utilisation
+    - Points calculés sur montant payé
+    - Traçabilité complète
+    - Pas d'expiration des points
+end note
+
+@enduml

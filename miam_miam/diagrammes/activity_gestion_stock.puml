@@ -1,0 +1,318 @@
+@startuml Activity_Gestion_Stock
+title Diagramme d'Activité - Gestion des Stocks
+
+|Manager/Employé|
+start
+
+:Accède au module
+"Gestion Stocks";
+
+:Consulte liste
+des articles;
+
+|Backend|
+:Récupère stocks
+avec alertes;
+
+fork
+    :Calcule articles
+    en stock bas;
+fork again
+    :Calcule articles
+    en rupture;
+fork again
+    :Calcule valeur
+    totale stock;
+end fork
+
+|Manager/Employé|
+:Affiche dashboard:
+- Articles en alerte
+- Ruptures de stock
+- Valeur totale;
+
+if (Action à effectuer?) then (Mise à jour stock)
+    
+    :Sélectionne article
+    à mettre à jour;
+    
+    :Affiche détails:
+    - Nom article
+    - Stock actuel
+    - Unité
+    - Dernière MAJ;
+    
+    if (Type opération?) then (Ajout stock)
+        :Saisit quantité
+        à ajouter;
+        
+        :Saisit raison:
+        - Réapprovisionnement
+        - Correction inventaire
+        - Retour fournisseur;
+        
+        |Backend|
+        :Valide quantité > 0;
+        
+        if (Valide?) then (oui)
+            :Incrémente stock;
+            
+            |Base de données|
+            :UPDATE stocks
+            SET quantite = quantite + X,
+            date_mise_a_jour = NOW();
+            
+            :INSERT INTO activites
+            (description: "Ajout stock");
+            
+            if (Stock était bas?) then (oui)
+                :Retire alerte
+                stock bas;
+                
+                :Notifie que
+                article disponible;
+            endif
+            
+            |Manager/Employé|
+            :Affiche confirmation
+            "Stock mis à jour";
+            
+        else (non)
+            :Affiche erreur
+            validation;
+        endif
+        
+    elseif (Retrait stock) then
+        :Saisit quantité
+        à retirer;
+        
+        :Saisit raison:
+        - Perte/Casse
+        - Péremption
+        - Correction inventaire;
+        
+        |Backend|
+        :Vérifie stock
+        disponible;
+        
+        if (Stock suffisant?) then (oui)
+            :Décrémente stock;
+            
+            |Base de données|
+            :UPDATE stocks
+            SET quantite = quantite - X,
+            date_mise_a_jour = NOW();
+            
+            :INSERT INTO activites
+            (description: "Retrait stock");
+            
+            if (Stock devient bas?) then (oui)
+                :Crée alerte
+                stock bas;
+                
+                :Envoie notification
+                au manager;
+            endif
+            
+            if (Stock = 0?) then (oui)
+                :Marque article
+                indisponible;
+                
+                |Base de données|
+                :UPDATE menus
+                SET disponible = false;
+                
+                :Envoie alerte
+                rupture de stock;
+            endif
+            
+            |Manager/Employé|
+            :Affiche confirmation;
+            
+        else (non)
+            :Affiche erreur
+            "Stock insuffisant";
+        endif
+        
+    else (Inventaire complet)
+        :Saisit nouvelle
+        quantité exacte;
+        
+        :Saisit commentaire
+        inventaire;
+        
+        |Backend|
+        :Calcule différence
+        avec stock actuel;
+        
+        |Base de données|
+        :UPDATE stocks
+        SET quantite = nouvelle_valeur,
+        date_mise_a_jour = NOW();
+        
+        :INSERT INTO activites
+        (description: "Inventaire",
+        details: différence);
+        
+        if (Différence significative?) then (oui)
+            :Envoie rapport
+            au manager;
+        endif
+        
+        |Manager/Employé|
+        :Affiche résultat
+        inventaire;
+    endif
+    
+elseif (Consultation alertes) then
+    
+    :Affiche liste
+    articles en alerte;
+    
+    fork
+        :Articles stock bas
+        (< seuil);
+    fork again
+        :Articles en
+        rupture (= 0);
+    fork again
+        :Articles non
+        réapprovisionnés
+        depuis X jours;
+    end fork
+    
+    :Sélectionne article;
+    
+    :Affiche historique
+    mouvements stock;
+    
+    if (Action?) then (Commander)
+        :Crée bon de
+        commande fournisseur;
+        
+        note right
+            Fonctionnalité future:
+            Intégration fournisseurs
+        end note
+        
+    elseif (Marquer indisponible)
+        |Backend|
+        :Marque article
+        temporairement
+        indisponible;
+        
+        |Base de données|
+        :UPDATE menus
+        SET disponible = false;
+        
+        :Notifie staff;
+        
+    else (Ignorer)
+        :Retour liste;
+    endif
+    
+elseif (Rapport stocks) then
+    
+    :Sélectionne période;
+    
+    |Backend|
+    fork
+        :Calcule mouvements
+        par article;
+    fork again
+        :Calcule articles
+        les plus utilisés;
+    fork again
+        :Calcule taux
+        de rotation;
+    fork again
+        :Calcule valeur
+        stock par catégorie;
+    end fork
+    
+    |Manager/Employé|
+    :Affiche rapport:
+    - Graphiques
+    - Tableaux
+    - Statistiques;
+    
+    if (Exporter?) then (oui)
+        :Génère PDF/Excel;
+        :Télécharge rapport;
+    endif
+    
+else (Retour)
+    stop
+endif
+
+== Traitement Automatique Commande ==
+
+note over Backend
+    Lors d'une commande validée,
+    le stock est automatiquement
+    décrémenté
+end note
+
+|Backend|
+:Commande validée;
+
+loop Pour chaque article
+    :Récupère quantité
+    commandée;
+    
+    |Base de données|
+    :UPDATE stocks
+    SET quantite = quantite - X
+    WHERE id_article = Y;
+    
+    :SELECT quantite
+    FROM stocks
+    WHERE id_article = Y;
+    
+    if (Stock < seuil?) then (oui)
+        :Crée alerte
+        automatique;
+        
+        :Envoie notification
+        staff;
+    endif
+    
+    if (Stock = 0?) then (oui)
+        :Marque article
+        indisponible;
+        
+        :UPDATE menus
+        SET disponible = false;
+        
+        :Envoie alerte
+        critique;
+    endif
+end loop
+
+|Manager/Employé|
+if (Alerte reçue?) then (oui)
+    :Consulte alertes;
+    :Prend action
+    appropriée;
+endif
+
+stop
+
+note bottom
+    **Seuils d'alerte:**
+    - Stock bas: < 10 unités
+    - Stock critique: < 5 unités
+    - Rupture: = 0 unités
+    
+    **Notifications:**
+    - Email manager (stock bas)
+    - SMS (rupture)
+    - Dashboard (temps réel)
+    
+    **Traçabilité:**
+    - Tous les mouvements loggés
+    - Historique complet
+    - Responsable identifié
+end note
+
+@enduml

@@ -1,0 +1,169 @@
+@startuml Sequence_Parrainage
+title Diagramme de Séquence - Système de Parrainage
+
+actor "Étudiant\n(Parrain)" as parrain
+actor "Nouvel Étudiant\n(Filleul)" as filleul
+participant "Frontend\nReact" as frontend
+participant "API Laravel\nBackend" as backend
+participant "Base de\nDonnées" as bdd
+participant "Service\nEmail" as email
+
+autonumber
+
+== Génération du Code Parrainage ==
+parrain -> frontend : Accède "Mon parrainage"
+frontend -> backend : GET /api/user/referral-code
+backend -> bdd : SELECT code_parrainage\nFROM users\nWHERE id_user = X
+
+alt Code existe déjà
+    bdd --> backend : code_parrainage = "JEAN2024ABC"
+    backend --> frontend : {code: "JEAN2024ABC"}
+    
+else Code n'existe pas
+    backend -> backend : Génère code unique\n(PRENOM + ANNEE + 3 lettres aléatoires)
+    backend -> bdd : UPDATE users\nSET code_parrainage = 'JEAN2024ABC'\nWHERE id_user = X
+    bdd --> backend : Code enregistré
+    backend --> frontend : {code: "JEAN2024ABC"}
+end
+
+frontend --> parrain : Affiche code parrainage\n+ bouton partage
+
+== Partage du Code ==
+parrain -> frontend : Clique "Partager"
+frontend --> parrain : Options:\n- Copier lien\n- WhatsApp\n- Email
+
+parrain -> parrain : Partage code via\nWhatsApp/SMS/Email
+parrain -> filleul : Envoie message:\n"Inscris-toi avec mon code\nJEAN2024ABC pour gagner 25 points!"
+
+== Inscription du Filleul ==
+filleul -> frontend : Accède page inscription
+frontend --> filleul : Formulaire inscription\n+ champ "Code parrain (optionnel)"
+
+filleul -> frontend : Remplit formulaire\n+ saisit code "JEAN2024ABC"
+
+frontend -> backend : POST /api/auth/register\n{nom, prenom, email, password,\ncode_parrain: "JEAN2024ABC"}
+
+activate backend
+
+== Validation du Code Parrain ==
+backend -> backend : Validation données\n(RegisterRequest)
+
+backend -> bdd : SELECT id_user, nom, prenom\nFROM users\nWHERE code_parrainage = 'JEAN2024ABC'\nAND role = 'student'
+
+alt Code parrain valide
+    bdd --> backend : Parrain trouvé (id_user: 45)
+    
+    ' Création du compte filleul
+    backend -> backend : Hash password
+    backend -> bdd : INSERT INTO users\n(nom, prenom, email, password,\nrole: 'student',\npoints_fidelite: 25)
+    bdd --> backend : Nouveau user créé (id_user: 156)
+    
+    ' Génération code parrainage pour le filleul
+    backend -> backend : Génère code unique\npour le filleul
+    backend -> bdd : UPDATE users\nSET code_parrainage = 'MARIE2024XYZ'\nWHERE id_user = 156
+    
+    ' Enregistrement du parrainage
+    backend -> bdd : INSERT INTO parrainages\n(id_parrain: 45,\nid_filleul: 156,\ncode_parrainage: 'JEAN2024ABC',\nstatut: 'valide')
+    
+    == Attribution des Points ==
+    
+    ' Points pour le parrain (50 points)
+    backend -> bdd : UPDATE users\nSET points_fidelite = points_fidelite + 50\nWHERE id_user = 45
+    
+    backend -> bdd : INSERT INTO suivi_points\n(id_user: 45,\ntype_transaction: 'gain',\npoints: 50,\nsource: 'parrainage',\ndescription: 'Parrainage de Marie Kamga')
+    
+    ' Points pour le filleul (25 points déjà donnés à l'inscription)
+    backend -> bdd : INSERT INTO suivi_points\n(id_user: 156,\ntype_transaction: 'gain',\npoints: 25,\nsource: 'parrainage',\ndescription: 'Bonus inscription avec code parrain')
+    
+    == Notifications ==
+    
+    ' Email de bienvenue au filleul
+    backend -> email : Envoie email bienvenue\n+ confirmation 25 points
+    email --> filleul : Email:\n"Bienvenue! Vous avez reçu 25 points"
+    
+    ' Notification au parrain
+    backend -> email : Envoie notification parrain\n+ confirmation 50 points
+    email --> parrain : Email:\n"Marie Kamga s'est inscrit\navec votre code! +50 points"
+    
+    ' Génération token
+    backend -> backend : Génère token Sanctum
+    backend -> bdd : INSERT INTO personal_access_tokens
+    
+    backend --> frontend : {success: true,\ntoken, user,\npoints_bonus: 25,\nparrain: 'Jean Dupont'}
+    deactivate backend
+    
+    frontend --> filleul : Inscription réussie!\n"Vous avez reçu 25 points\ngrâce à Jean Dupont"
+    
+    ' Notification temps réel au parrain (si connecté)
+    backend -> frontend : WebSocket/Pusher notification
+    frontend --> parrain : Notification:\n"🎉 Marie Kamga a utilisé\nvotre code! +50 points"
+    
+else Code parrain invalide
+    bdd --> backend : Aucun résultat
+    backend --> frontend : {error: 'Code parrain invalide'}
+    frontend --> filleul : "Code parrain non trouvé.\nInscription sans parrainage?"
+    
+    alt Filleul continue sans code
+        filleul -> frontend : Clique "Continuer sans code"
+        frontend -> backend : POST /api/auth/register\n(sans code_parrain)
+        backend -> bdd : INSERT INTO users\n(points_fidelite: 0)
+        backend --> frontend : {success: true, token, user}
+        frontend --> filleul : Inscription réussie\n(0 points bonus)
+    end
+end
+
+== Consultation des Filleuls ==
+note over parrain
+    Quelques jours plus tard
+end note
+
+parrain -> frontend : Accède "Mes filleuls"
+frontend -> backend : GET /api/user/referrals
+
+activate backend
+backend -> bdd : SELECT u.nom, u.prenom, u.email,\np.date_parrainage, p.statut\nFROM parrainages p\nJOIN users u ON p.id_filleul = u.id_user\nWHERE p.id_parrain = 45\nORDER BY p.date_parrainage DESC
+
+bdd --> backend : Liste 3 filleuls
+
+' Calcul statistiques
+backend -> bdd : SELECT COUNT(*) as total_filleuls,\nSUM(50) as total_points_gagnes\nFROM parrainages\nWHERE id_parrain = 45\nAND statut = 'valide'
+
+bdd --> backend : {total_filleuls: 3,\ntotal_points: 150}
+
+backend --> frontend : {filleuls: [\n  {nom: 'Marie Kamga', date: '2024-10-25'},\n  {nom: 'Paul Nkoa', date: '2024-10-20'},\n  {nom: 'Sophie Mbida', date: '2024-10-15'}\n],\nstatistiques: {total: 3, points: 150}}
+deactivate backend
+
+frontend --> parrain : Affiche tableau:\n- 3 filleuls\n- 150 points gagnés\n+ détails de chaque filleul
+
+== Utilisation des Points de Parrainage ==
+parrain -> frontend : Accède "Mes points"
+frontend -> backend : GET /api/user/points
+backend -> bdd : SELECT points_fidelite,\n(SELECT COUNT(*) FROM suivi_points\nWHERE id_user = 45\nAND source = 'parrainage') as points_parrainage\nFROM users WHERE id_user = 45
+
+bdd --> backend : {points_total: 287,\npoints_parrainage: 150}
+
+backend --> frontend : Détails points
+frontend --> parrain : Affiche:\n- Total: 287 points\n- Dont parrainage: 150 pts\n- Équivalent: 287 000 FCFA
+
+parrain -> frontend : Clique "Utiliser points\npour réduction"
+frontend --> parrain : "Utilisez vos points\nlors de votre prochaine commande\n(1 point = 1000 FCFA)"
+
+note over parrain, frontend
+    Les points peuvent être utilisés
+    lors du passage d'une commande
+    pour obtenir une réduction
+end note
+
+== Règles de Parrainage ==
+note over backend, bdd
+    RÈGLES MÉTIER:
+    - 1 code parrain par inscription
+    - Parrain: +50 points
+    - Filleul: +25 points
+    - Points crédités immédiatement
+    - Pas de limite de filleuls
+    - Code parrain unique et permanent
+    - Traçabilité complète dans suivi_points
+end note
+
+@enduml

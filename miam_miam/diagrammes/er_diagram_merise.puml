@@ -1,0 +1,305 @@
+@startuml ER_Diagram_MERISE_MCD
+title Modèle Conceptuel de Données (MCD) - Mon Miam Miam
+
+' Configuration
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+
+' Entités
+entity "USER" as user {
+    * **id_user** : INT <<PK>>
+    --
+    nom : VARCHAR(100)
+    prenom : VARCHAR(100)
+    * email : VARCHAR(150) <<UNIQUE>>
+    * password : VARCHAR(255)
+    telephone : VARCHAR(20)
+    adresse : TEXT
+    * role : ENUM
+    solde : DECIMAL(10,2)
+    points_fidelite : INT
+    code_parrainage : VARCHAR(20) <<UNIQUE>>
+    email_verified_at : TIMESTAMP
+}
+
+entity "COMMANDE" as commande {
+    * **id_commande** : INT <<PK>>
+    --
+    * numero_commande : VARCHAR(50) <<UNIQUE>>
+    * date_commande : TIMESTAMP
+    * montant_total : DECIMAL(10,2)
+    * statut : ENUM
+    * type_livraison : ENUM
+    * heure_arrivee : TIME
+    adresse_livraison : TEXT
+    commentaire_client : TEXT
+}
+
+entity "MENU" as menu {
+    * **id_article** : INT <<PK>>
+    --
+    * nom : VARCHAR(200)
+    description : TEXT
+    * prix : DECIMAL(10,2)
+    image : VARCHAR(255)
+    * disponible : BOOLEAN
+    temps_preparation : INT
+    valeur_nutritionnelle : TEXT
+    ingredients : TEXT
+}
+
+entity "CATEGORIE_MENU" as categorie {
+    * **id_categorie** : INT <<PK>>
+    --
+    * nom : VARCHAR(100)
+    description : TEXT
+    image : VARCHAR(255)
+}
+
+entity "STOCK" as stock {
+    * **id_stock** : INT <<PK>>
+    --
+    * quantite : INT
+    unite : VARCHAR(50)
+    * date_mise_a_jour : TIMESTAMP
+}
+
+entity "PAIEMENT" as paiement {
+    * **id_paiement** : INT <<PK>>
+    --
+    * reference : VARCHAR(100) <<UNIQUE>>
+    * montant : DECIMAL(10,2)
+    * methode : ENUM
+    * statut : ENUM
+    transaction_id : VARCHAR(255)
+    date_paiement : TIMESTAMP
+}
+
+entity "RECLAMATION" as reclamation {
+    * **id_reclamation** : INT <<PK>>
+    --
+    * objet : VARCHAR(255)
+    * message : TEXT
+    * statut : ENUM
+    reponse : TEXT
+    date_reponse : TIMESTAMP
+}
+
+entity "EVENEMENT" as evenement {
+    * **id_evenement** : INT <<PK>>
+    --
+    * titre : VARCHAR(255)
+    description : TEXT
+    * type : ENUM
+    code_promo : VARCHAR(50)
+    valeur_remise : DECIMAL(10,2)
+    type_remise : ENUM
+    * date_debut : DATE
+    * date_fin : DATE
+    * active : ENUM
+    affiche : VARCHAR(255)
+    recompense_points : INT
+}
+
+entity "PARRAINAGE" as parrainage {
+    * **id_parrainage** : INT <<PK>>
+    --
+    * code_parrainage : VARCHAR(20)
+    * date_parrainage : TIMESTAMP
+    * statut : ENUM
+}
+
+entity "SUIVI_POINT" as suivi_point {
+    * **id_suivi_point** : INT <<PK>>
+    --
+    * type_transaction : ENUM
+    * points : INT
+    * source : ENUM
+    description : TEXT
+    id_reference : INT
+    * date_transaction : TIMESTAMP
+}
+
+entity "EMPLOYE" as employe {
+    * **id_employe** : INT <<PK>>
+    --
+    * poste : ENUM
+    * date_embauche : DATE
+    salaire : DECIMAL(10,2)
+    * statut_emploi : ENUM
+}
+
+entity "ACTIVITE" as activite {
+    * **id_activite** : INT <<PK>>
+    --
+    * type_activite : ENUM
+    description : TEXT
+    ip_address : VARCHAR(45)
+    * date_activite : TIMESTAMP
+}
+
+entity "USAGE_PROMO" as usage_promo {
+    * **id_usage_promo** : INT <<PK>>
+    --
+    * code_utilise : VARCHAR(50)
+    * montant_economise : DECIMAL(10,2)
+    * date_utilisation : TIMESTAMP
+}
+
+entity "PARTICIPATION_EVENEMENT" as participation {
+    * **id_participation** : INT <<PK>>
+    --
+    * date_participation : TIMESTAMP
+    * statut : ENUM
+}
+
+' Table de liaison DETAIL_COMMANDE
+entity "DETAIL_COMMANDE" as detail {
+    * **id_detail_commande** : INT <<PK>>
+    --
+    * quantite : INT
+    * prix_unitaire : DECIMAL(10,2)
+    * sous_total : DECIMAL(10,2)
+}
+
+' Relations avec cardinalités MERISE
+
+' USER - COMMANDE (1,N)
+user ||--o{ commande : "PASSE\n1,N"
+
+' COMMANDE - DETAIL_COMMANDE - MENU (N,N)
+commande ||--o{ detail : "CONTIENT\n1,N"
+menu ||--o{ detail : "EST_DANS\n0,N"
+
+' COMMANDE - PAIEMENT (1,1)
+commande ||--|| paiement : "REGLE_PAR\n1,1"
+
+' USER - PAIEMENT (1,N)
+user ||--o{ paiement : "EFFECTUE\n1,N"
+
+' USER - RECLAMATION (1,N)
+user ||--o{ reclamation : "DEPOSE\n1,N"
+
+' CATEGORIE_MENU - MENU (1,N)
+categorie ||--o{ menu : "CONTIENT\n1,N"
+
+' MENU - STOCK (1,1)
+menu ||--|| stock : "POSSEDE\n1,1"
+
+' USER - PARRAINAGE (Parrain) (1,N)
+user ||--o{ parrainage : "PARRAINE\n1,N"
+
+' USER - PARRAINAGE (Filleul) (N,1)
+user ||--o{ parrainage : "EST_FILLEUL\n0,1"
+
+' USER - SUIVI_POINT (1,N)
+user ||--o{ suivi_point : "GAGNE/UTILISE\n1,N"
+
+' USER - EMPLOYE (1,1)
+user ||--o| employe : "EST_EMPLOYE\n0,1"
+
+' EMPLOYE - ACTIVITE (1,N)
+employe ||--o{ activite : "EFFECTUE\n1,N"
+
+' USER - EVENEMENT via PARTICIPATION (N,N)
+user ||--o{ participation : "PARTICIPE\n0,N"
+evenement ||--o{ participation : "ACCUEILLE\n0,N"
+
+' USER - EVENEMENT via USAGE_PROMO (N,N)
+user ||--o{ usage_promo : "UTILISE\n0,N"
+evenement ||--o{ usage_promo : "GENERE\n0,N"
+
+' COMMANDE - USAGE_PROMO (1,1)
+commande ||--o| usage_promo : "BENEFICIE\n0,1"
+
+note top of user
+    **Rôles possibles:**
+    - student (étudiant)
+    - employee (employé)
+    - manager (gérant)
+    - admin (administrateur)
+    
+    **Règles:**
+    - Email unique obligatoire
+    - Code parrainage auto-généré
+    - Points initiaux: 0
+    - Solde initial: 0
+end note
+
+note top of commande
+    **Statuts:**
+    - en_attente
+    - en_preparation
+    - prete
+    - livree
+    - annulee
+    
+    **Types livraison:**
+    - sur_place
+    - livraison
+    
+    **Règles:**
+    - Numéro auto-généré: CMD-YYYYMMDD-XXXX
+    - Montant calculé automatiquement
+end note
+
+note top of paiement
+    **Méthodes:**
+    - espece
+    - mobile_money
+    - carte
+    
+    **Statuts:**
+    - en_attente
+    - paye
+    - echec
+    - rembourse
+    
+    **Règles:**
+    - Transaction CinetPay pour mobile_money
+    - Référence unique obligatoire
+end note
+
+note bottom of evenement
+    **Types:**
+    - promotion
+    - evenement
+    - actualite
+    
+    **Types remise:**
+    - pourcentage
+    - fixe
+    
+    **Règles:**
+    - Code promo unique si type=promotion
+    - Dates cohérentes (début < fin)
+    - Active: oui/non
+end note
+
+note bottom of suivi_point
+    **Types transaction:**
+    - gain
+    - utilisation
+    
+    **Sources:**
+    - commande
+    - parrainage
+    - evenement
+    - recompense
+    
+    **Règles:**
+    - Traçabilité complète
+    - Points négatifs pour utilisation
+    - id_reference selon source
+end note
+
+note right of parrainage
+    **Règles métier:**
+    - Parrain: +50 points
+    - Filleul: +25 points
+    - Code unique par parrain
+    - Statut: valide/en_attente/rejete
+    - Un filleul = un seul parrain
+end note
+
+@enduml
