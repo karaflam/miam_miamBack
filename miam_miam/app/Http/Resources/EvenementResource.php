@@ -21,8 +21,8 @@ class EvenementResource extends JsonResource
         $participationsAujourdhui = 0;
         
         // Compter les participations d'aujourd'hui pour l'utilisateur connecté
-        if ($user && isset($user->id_etudiant)) {
-            $participationsAujourdhui = ParticipationEvenement::where('id_etudiant', $user->id_etudiant)
+        if ($user && isset($user->id_utilisateur)) {
+            $participationsAujourdhui = ParticipationEvenement::where('id_etudiant', $user->id_utilisateur)
                 ->where('id_evenement', $this->id_evenement)
                 ->where('date_participation', now()->toDateString())
                 ->count();
