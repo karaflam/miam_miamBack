@@ -212,8 +212,8 @@ class EvenementController extends Controller
 
         $today = now()->toDateString();
         
-        // Compter les participations d'aujourd'hui
-        $participationsAujourdhui = ParticipationEvenement::where('id_etudiant', $user->id_etudiant)
+        // Compter les participations d'aujourd'hui (utiliser id_utilisateur)
+        $participationsAujourdhui = ParticipationEvenement::where('id_etudiant', $user->id_utilisateur)
             ->where('id_evenement', $id)
             ->where('date_participation', $today)
             ->count();
@@ -226,9 +226,9 @@ class EvenementController extends Controller
             ], 403);
         }
 
-        // Créer la participation
+        // Créer la participation (utiliser id_utilisateur)
         ParticipationEvenement::create([
-            'id_etudiant' => $user->id_etudiant,
+            'id_etudiant' => $user->id_utilisateur,
             'id_evenement' => $id,
             'date_participation' => $today
         ]);

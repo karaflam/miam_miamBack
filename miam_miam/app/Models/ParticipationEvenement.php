@@ -19,9 +19,9 @@ class ParticipationEvenement extends Model
     ];
 
     // Relations
-    public function etudiant()
+    public function user()
     {
-        return $this->belongsTo(Etudiant::class, 'id_etudiant', 'id_etudiant');
+        return $this->belongsTo(User::class, 'id_etudiant', 'id_utilisateur');
     }
 
     public function evenement()

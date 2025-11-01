@@ -15,9 +15,9 @@ return new class extends Migration
             $table->date('date_participation'); // Pour compter les participations par jour
             $table->timestamps();
 
-            // Foreign keys
+            // Foreign keys - pointer vers users.id_utilisateur
             $table->foreign('id_etudiant')->references('id_utilisateur')->on('users')->onDelete('cascade');
-            $table->foreign('id_evenement')->references('id_evenement')->on('evenements')->onDelete('cascade');
+            $table->foreign('id_evenement')->references('id_evenement')->on('evenement')->onDelete('cascade');
             
             // Index pour optimiser les requêtes
             $table->index(['id_etudiant', 'id_evenement', 'date_participation']);
