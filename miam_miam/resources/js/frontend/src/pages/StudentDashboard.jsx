@@ -158,7 +158,10 @@ export default function StudentDashboard() {
     try {
       const result = await eventService.getAllEvents();
       if (result.success) {
-        setEvents(result.data || []);
+        // Tous les événements viennent de la BDD (y compris jeux intégrés)
+        // On filtre uniquement les événements actifs
+        const activeEvents = (result.data || []).filter(event => event.active === 'oui');
+        setEvents(activeEvents);
       }
     } catch (error) {
       console.error('Erreur chargement événements:', error);

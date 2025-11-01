@@ -515,6 +515,7 @@ const fetchEvents = async () => {
     
     const data = await response.json();
     if (data.success || Array.isArray(data.data)) {
+      // Tous les événements viennent de la BDD, y compris les jeux intégrés
       setEvents(data.data || data);
     }
   } catch (error) {
@@ -572,6 +573,13 @@ const handleCreateOrUpdateEvent = async () => {
 };
 
 const handleDeleteEvent = async (id) => {
+  // Vérifier si c'est un jeu intégré
+  const event = events.find(e => e.id_evenement === id);
+  if (event && event.is_integrated) {
+    alert('Les jeux intégrés (Blackjack, Quiz) ne peuvent pas être supprimés. Vous pouvez uniquement les activer/désactiver.');
+    return;
+  }
+  
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) return;
   
   try {
@@ -597,6 +605,7 @@ const handleDeleteEvent = async (id) => {
 
 const handleToggleEvent = async (id) => {
   try {
+    // Tous les événements (y compris jeux intégrés) passent par l'API
     const token = localStorage.getItem('auth_token');
     const response = await fetch(`http://localhost:8000/api/evenements/${id}/toggle`, {
       method: 'PATCH',
@@ -616,6 +625,12 @@ const handleToggleEvent = async (id) => {
 };
 
 const openEditEventModal = (event) => {
+  // Empêcher l'édition des jeux intégrés
+  if (event.is_integrated) {
+    alert('Les jeux intégrés (Blackjack, Quiz) ne peuvent pas être modifiés. Seul leur statut actif/inactif peut être changé via le toggle.');
+    return;
+  }
+  
   setEditingEvent(event);
   setEventFormData({
     titre: event.titre || '',
@@ -2414,12 +2429,18 @@ useEffect(() => {
                             {event.type === 'evenement' && <Calendar className="w-16 h-16 text-primary" />}
                           </div>
                         )}
-                        <div className="absolute top-3 left-3">
+                        <div className="absolute top-3 left-3 flex gap-2">
                           <span className="px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-semibold">
                             {event.type === 'promotion' && 'Promotion'}
                             {event.type === 'jeu' && 'Jeu'}
                             {event.type === 'evenement' && 'Événement'}
                           </span>
+                          {event.is_integrated && (
+                            <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-semibold flex items-center gap-1">
+                              <Gamepad2 className="w-3 h-3" />
+                              Intégré
+                            </span>
+                          )}
                         </div>
                         <div className="absolute top-3 right-3">
                           <button
@@ -2483,15 +2504,27 @@ useEffect(() => {
                         
                         <div className="flex gap-2">
                           <button
-                            onClick={() => openEditEventModal(event)}
-                            className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                            onClick={() => !event.is_integrated && openEditEventModal(event)}
+                            disabled={event.is_integrated}
+                            className={`flex-1 px-3 py-2 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 ${
+                              event.is_integrated
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                            title={event.is_integrated ? 'Les jeux intégrés ne peuvent pas être modifiés' : 'Modifier'}
                           >
                             <Edit className="w-4 h-4" />
                             Modifier
                           </button>
                           <button
-                            onClick={() => handleDeleteEvent(event.id_evenement)}
-                            className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                            onClick={() => !event.is_integrated && handleDeleteEvent(event.id_evenement)}
+                            disabled={event.is_integrated}
+                            className={`flex-1 px-3 py-2 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 ${
+                              event.is_integrated
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-red-600 text-white hover:bg-red-700'
+                            }`}
+                            title={event.is_integrated ? 'Les jeux intégrés ne peuvent pas être supprimés' : 'Supprimer'}
                           >
                             <Trash2 className="w-4 h-4" />
                             Supprimer
