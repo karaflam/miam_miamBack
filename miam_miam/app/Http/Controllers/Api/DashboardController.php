@@ -304,16 +304,20 @@ class DashboardController extends Controller
     }
 
     /**
-     * Top 10 des clients du mois (pour dashboard étudiant)
+     * Top 10 des clients (pour dashboard étudiant)
+     * @param string $periode 'mois' ou 'semaine'
      */
     public function top10Clients(): JsonResponse
     {
         try {
+            // Récupérer le paramètre de période (par défaut: mois)
+            $periode = request()->get('periode', 'mois');
+            
             $moisActuel = Carbon::now()->month;
             $anneeActuelle = Carbon::now()->year;
-
-            // Récupérer les 10 meilleurs clients du mois en cours
-            $topClients = User::select(
+            
+            // Construire la requête de base
+            $query = User::select(
                 'users.id_utilisateur',
                 'users.nom',
                 'users.prenom',
@@ -323,13 +327,29 @@ class DashboardController extends Controller
                 DB::raw('COUNT(commandes.id_commande) as nombre_commandes')
             )
             ->leftJoin('commandes', 'users.id_utilisateur', '=', 'commandes.id_utilisateur')
-            ->whereMonth('commandes.date_commande', $moisActuel)
-            ->whereYear('commandes.date_commande', $anneeActuelle)
-            ->where('commandes.statut_commande', '!=', 'annulee')
-            ->groupBy('users.id_utilisateur', 'users.nom', 'users.prenom', 'users.email', 'users.point_fidelite')
-            ->orderByDesc('total_depense')
-            ->limit(10)
-            ->get();
+            ->where('commandes.statut_commande', '!=', 'annulee');
+
+            // Appliquer le filtre selon la période
+            if ($periode === 'semaine') {
+                // Semaine en cours (du lundi au dimanche)
+                $debutSemaine = Carbon::now()->startOfWeek();
+                $finSemaine = Carbon::now()->endOfWeek();
+                
+                $query->whereBetween('commandes.date_commande', [$debutSemaine, $finSemaine]);
+                $periodeLabel = 'Semaine du ' . $debutSemaine->format('d/m') . ' au ' . $finSemaine->format('d/m/Y');
+            } else {
+                // Mois en cours (par défaut)
+                $query->whereMonth('commandes.date_commande', $moisActuel)
+                      ->whereYear('commandes.date_commande', $anneeActuelle);
+                $periodeLabel = Carbon::now()->locale('fr')->translatedFormat('F Y');
+            }
+
+            // Récupérer les 10 meilleurs clients
+            $topClients = $query
+                ->groupBy('users.id_utilisateur', 'users.nom', 'users.prenom', 'users.email', 'users.point_fidelite')
+                ->orderByDesc('total_depense')
+                ->limit(10)
+                ->get();
 
             // Ajouter le rang
             $topClients = $topClients->map(function($client, $index) {
@@ -350,7 +370,8 @@ class DashboardController extends Controller
                 'success' => true,
                 'data' => [
                     'top_clients' => $topClients,
-                    'mois' => Carbon::now()->locale('fr')->translatedFormat('F Y')
+                    'periode' => $periodeLabel,
+                    'type_periode' => $periode
                 ]
             ]);
         } catch (\Exception $e) {

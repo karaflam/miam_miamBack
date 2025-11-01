@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, TrendingUp, Award, Crown, Medal } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Award, Crown, Medal, Calendar, CalendarDays } from 'lucide-react';
 
 const Top10Clients = () => {
   const [topClients, setTopClients] = useState([]);
-  const [mois, setMois] = useState('');
+  const [periode, setPeriode] = useState('');
+  const [periodeType, setPeriodeType] = useState('mois'); // 'mois' ou 'semaine'
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
 
-  const fetchTop10 = async () => {
+  const fetchTop10 = async (typePeriode = 'mois') => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/top10-clients', {
+      const response = await fetch(`http://localhost:8000/api/top10-clients?periode=${typePeriode}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -21,7 +22,8 @@ const Top10Clients = () => {
       const result = await response.json();
       if (result.success) {
         setTopClients(result.data.top_clients);
-        setMois(result.data.mois);
+        setPeriode(result.data.periode);
+        setPeriodeType(result.data.type_periode || typePeriode);
       }
     } catch (error) {
       console.error('Erreur lors du chargement du top 10:', error);
@@ -36,8 +38,13 @@ const Top10Clients = () => {
     setCurrentUserId(user.id_utilisateur || user.id);
     
     // Charger les données
-    fetchTop10();
+    fetchTop10(periodeType);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePeriodeChange = (newPeriode) => {
+    setPeriodeType(newPeriode);
+    fetchTop10(newPeriode);
+  };
 
   const getRankIcon = (rang) => {
     switch (rang) {
@@ -82,15 +89,44 @@ const Top10Clients = () => {
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-yellow-600 p-6 text-white">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Trophy className="w-8 h-8" />
             <div>
               <h2 className="text-2xl font-bold">Top 10 Clients</h2>
-              <p className="text-sm opacity-90">{mois}</p>
+              <p className="text-sm opacity-90">{periode}</p>
             </div>
           </div>
-          <TrendingUp className="w-8 h-8 opacity-80" />
+          
+          {/* Filtres de période */}
+          <div className="flex gap-2 bg-white/20 backdrop-blur-sm rounded-lg p-1">
+            <button
+              onClick={() => handlePeriodeChange('semaine')}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all duration-200
+                ${periodeType === 'semaine' 
+                  ? 'bg-white text-primary shadow-md' 
+                  : 'text-white hover:bg-white/10'
+                }
+              `}
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Semaine</span>
+            </button>
+            <button
+              onClick={() => handlePeriodeChange('mois')}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all duration-200
+                ${periodeType === 'mois' 
+                  ? 'bg-white text-primary shadow-md' 
+                  : 'text-white hover:bg-white/10'
+                }
+              `}
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Mois</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -99,7 +135,9 @@ const Top10Clients = () => {
         {topClients.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Trophy className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <p className="text-lg">Aucune commande ce mois-ci</p>
+            <p className="text-lg">
+              Aucune commande {periodeType === 'semaine' ? 'cette semaine' : 'ce mois-ci'}
+            </p>
             <p className="text-sm">Soyez le premier à commander !</p>
           </div>
         ) : (
