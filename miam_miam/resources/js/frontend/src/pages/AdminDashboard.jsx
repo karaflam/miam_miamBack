@@ -1525,7 +1525,7 @@ useEffect(() => {
 
         {activeTab === "dashboard" && (
           <div className="mt-4 lg:mt-0">
-            {/* System Alerts */}
+            {/* System Alerts
             <FadeInOnScroll>
               <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-xl p-6 mb-8 hover:shadow-xl transition-all duration-300">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1541,7 +1541,7 @@ useEffect(() => {
                 </button>
               </div>
               </div>
-            </FadeInOnScroll>
+            </FadeInOnScroll> */}
 
             {/* Global KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
