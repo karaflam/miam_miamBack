@@ -3,8 +3,10 @@ import { Link } from "react-router-dom"
 import { Trophy, Tag, ArrowRight, Loader2, Star, Crown, Medal, Award, Calendar, Gift, MapPin } from "lucide-react"
 import CustomCarousel from "../components/CustomCarousel"
 import FadeInOnScroll from "../components/FadeInOnScroll"
+import { useAuth } from "../context/AuthContext"
 
 export default function HomePage() {
+  const {user} = useAuth();
   const [menuItems, setMenuItems] = useState([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(false)
   const [topClients, setTopClients] = useState([])
@@ -363,6 +365,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm">© 2024 Mon Miam Miam. Tous droits réservés.</p>
+            {!user &&(
             <div className="flex gap-6 text-sm">
               <Link to="/student-login" className="hover:text-white transition-colors">
                 Espace Étudiant
@@ -371,6 +374,7 @@ export default function HomePage() {
                 Espace Staff
               </Link>
             </div>
+            )}
           </div>
         </div>
       </footer>
