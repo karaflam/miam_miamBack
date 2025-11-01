@@ -5,6 +5,8 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Models\ParticipationEvenement;
+use Illuminate\Support\Facades\Auth;
 
 class EvenementResource extends JsonResource
 {
@@ -15,6 +17,17 @@ class EvenementResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $user = Auth::user();
+        $participationsAujourdhui = 0;
+        
+        // Compter les participations d'aujourd'hui pour l'utilisateur connecté
+        if ($user && isset($user->id_etudiant)) {
+            $participationsAujourdhui = ParticipationEvenement::where('id_etudiant', $user->id_etudiant)
+                ->where('id_evenement', $this->id_evenement)
+                ->where('date_participation', now()->toDateString())
+                ->count();
+        }
+        
         return [
             'id_evenement' => $this->id_evenement,
             'code_promo' => $this->code_promo,
@@ -29,6 +42,8 @@ class EvenementResource extends JsonResource
             'active' => $this->active,
             'limite_utilisation' => $this->limite_utilisation,
             'nombre_utilisation' => $this->nombre_utilisation,
+            'participations_aujourdhui' => $participationsAujourdhui, // Nombre de fois joué aujourd'hui
+            'participations_restantes' => $this->limite_utilisation ? max(0, $this->limite_utilisation - $participationsAujourdhui) : null,
             'is_integrated' => (bool) $this->is_integrated, // Marqueur pour jeux intégrés
             'date_creation' => $this->date_creation ? $this->date_creation->format('Y-m-d H:i:s') : null,
         ];

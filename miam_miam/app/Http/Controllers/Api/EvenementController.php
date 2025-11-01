@@ -9,6 +9,8 @@ use App\Http\Requests\StoreEvenementRequest;
 use App\Http\Requests\UpdateEvenementRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Employe;
+use App\Models\ParticipationEvenement;
+use Illuminate\Support\Facades\Auth;
 
 class EvenementController extends Controller
 {
@@ -172,6 +174,72 @@ class EvenementController extends Controller
         
         $item->delete();
         return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * Participer à un événement
+     * Enregistre la participation et vérifie la limite quotidienne
+     */
+    public function participate($id)
+    {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Vous devez être connecté pour participer'
+            ], 401);
+        }
+
+        $evenement = Evenement::findOrFail($id);
+        
+        // Vérifier que l'événement est actif
+        if ($evenement->active !== 'oui') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Cet événement n\'est pas disponible'
+            ], 403);
+        }
+
+        // Vérifier les dates
+        $now = now();
+        if ($evenement->date_debut > $now || $evenement->date_fin < $now) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Cet événement n\'est pas disponible pour le moment'
+            ], 403);
+        }
+
+        $today = now()->toDateString();
+        
+        // Compter les participations d'aujourd'hui
+        $participationsAujourdhui = ParticipationEvenement::where('id_etudiant', $user->id_etudiant)
+            ->where('id_evenement', $id)
+            ->where('date_participation', $today)
+            ->count();
+
+        // Vérifier la limite (si définie)
+        if ($evenement->limite_utilisation && $participationsAujourdhui >= $evenement->limite_utilisation) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Vous avez atteint la limite quotidienne pour cet événement (' . $evenement->limite_utilisation . ' fois/jour)'
+            ], 403);
+        }
+
+        // Créer la participation
+        ParticipationEvenement::create([
+            'id_etudiant' => $user->id_etudiant,
+            'id_evenement' => $id,
+            'date_participation' => $today
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Participation enregistrée avec succès !',
+            'participations_restantes' => $evenement->limite_utilisation 
+                ? ($evenement->limite_utilisation - $participationsAujourdhui - 1) 
+                : null
+        ]);
     }
 
     public function toggle($id)

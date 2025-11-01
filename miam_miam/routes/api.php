@@ -151,7 +151,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes publiques pour les étudiants (seuls les événements actifs sont visibles)
     Route::get('/evenements', [EvenementController::class, 'index']);
     Route::get('/evenements/{id}', [EvenementController::class, 'show']);
-    Route::post('/evenements/{id}/participer', [EvenementController::class, 'participer']);
+    Route::post('/evenements/{id}/participer', [EvenementController::class, 'participate']);
     
     // Routes admin/manager pour la gestion des événements
     Route::middleware('role:admin,manager')->group(function () {

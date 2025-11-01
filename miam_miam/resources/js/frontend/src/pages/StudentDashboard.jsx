@@ -54,6 +54,7 @@ export default function StudentDashboard() {
   const [loadingReferral, setLoadingReferral] = useState(false)
   const [referralError, setReferralError] = useState(null)
   const [activeGame, setActiveGame] = useState(null) // null, 'blackjack', 'quiz'
+  const [activeEventId, setActiveEventId] = useState(null) // ID de l'événement en cours
   
   // États pour les réclamations
   const [reclamations, setReclamations] = useState([])
@@ -193,11 +194,20 @@ export default function StudentDashboard() {
         return;
       }
       
-      // Si c'est un jeu intégré, lancer le composant correspondant
+      // Si c'est un jeu intégré, enregistrer la participation puis lancer le jeu
       if (event.is_integrated && event.type === 'jeu') {
         const gameType = identifyGame(event);
         if (gameType) {
-          setActiveGame(gameType);
+          // Enregistrer la participation AVANT de lancer le jeu
+          const result = await eventService.participate(eventId);
+          if (result.success) {
+            // Lancer le jeu seulement si la participation est acceptée
+            setActiveEventId(eventId);
+            setActiveGame(gameType);
+          } else {
+            // Afficher l'erreur (ex: limite quotidienne atteinte)
+            alert(result.error || 'Impossible de participer à ce jeu pour le moment');
+          }
           return;
         }
       }
@@ -219,8 +229,11 @@ export default function StudentDashboard() {
   // Fonction pour fermer le jeu
   const handleCloseGame = () => {
     setActiveGame(null);
+    setActiveEventId(null);
     // Rafraîchir les données utilisateur après le jeu
     refreshUser();
+    // Rafraîchir la liste des événements pour mettre à jour les stats
+    fetchEvents();
   };
 
   // Charger le menu au montage et quand les filtres changent
@@ -612,11 +625,11 @@ export default function StudentDashboard() {
 
   // Si un jeu est actif, afficher uniquement le jeu en plein écran
   if (activeGame === 'blackjack') {
-    return <Blackjack onClose={handleCloseGame} />;
+    return <Blackjack onClose={handleCloseGame} eventId={activeEventId} />;
   }
   
   if (activeGame === 'quiz') {
-    return <CulinaryQuiz onClose={handleCloseGame} />;
+    return <CulinaryQuiz onClose={handleCloseGame} eventId={activeEventId} />;
   }
 
   return (
@@ -1343,8 +1356,21 @@ export default function StudentDashboard() {
                                     </span>
                                   </div>
                                   {event.limite_utilisation > 0 && (
-                                    <div className="text-muted-foreground">
-                                      {event.nombre_utilisation || 0} / {event.limite_utilisation} utilisations
+                                    <div className="text-muted-foreground text-sm">
+                                      <span className="font-medium">
+                                        {event.participations_aujourdhui || 0} / {event.limite_utilisation}
+                                      </span>
+                                      {' '}parties jouées aujourd'hui
+                                      {event.participations_restantes !== null && event.participations_restantes > 0 && (
+                                        <span className="text-green-600 ml-2">
+                                          ({event.participations_restantes} restante{event.participations_restantes > 1 ? 's' : ''})
+                                        </span>
+                                      )}
+                                      {event.participations_restantes === 0 && (
+                                        <span className="text-red-600 ml-2">
+                                          (limite atteinte)
+                                        </span>
+                                      )}
                                     </div>
                                   )}
                                 </div>
