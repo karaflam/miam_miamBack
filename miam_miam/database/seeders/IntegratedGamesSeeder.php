@@ -38,9 +38,9 @@ class IntegratedGamesSeeder extends Seeder
                 'active' => 'non', // Désactivé par défaut
                 'limite_utilisation' => 3, // 3 parties par jour
                 'nombre_utilisation' => 0,
-                'is_integrated' => true, // Marqueur pour jeu intégré
-                'created_at' => $now,
-                'updated_at' => $now,
+                'url_affiche' => null,
+                'is_integrated' => 1, // Marqueur pour jeu intégré (1 = true en BDD)
+                'date_creation' => $now,
             ]);
             
             echo "✅ Jeu Blackjack créé avec succès\n";
@@ -62,9 +62,9 @@ class IntegratedGamesSeeder extends Seeder
                 'active' => 'non', // Désactivé par défaut
                 'limite_utilisation' => 5, // 5 quiz par jour
                 'nombre_utilisation' => 0,
-                'is_integrated' => true, // Marqueur pour jeu intégré
-                'created_at' => $now,
-                'updated_at' => $now,
+                'url_affiche' => null,
+                'is_integrated' => 1, // Marqueur pour jeu intégré (1 = true en BDD)
+                'date_creation' => $now,
             ]);
             
             echo "✅ Jeu Quiz Culinaire créé avec succès\n";
