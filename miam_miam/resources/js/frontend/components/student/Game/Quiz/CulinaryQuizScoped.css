@@ -2,7 +2,7 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #cfbd97 0%, #b8a67d 100%);
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   min-height: 500px;
@@ -27,12 +27,12 @@
 
 .culinary-quiz .question-counter {
   font-size: 1.1rem;
-  color: #667eea;
+  color: #cfbd97;
 }
 
 .culinary-quiz .current-score {
   font-size: 1rem;
-  color: #764ba2;
+  color: #b8a67d;
 }
 
 .culinary-quiz .progress-bar {
@@ -46,7 +46,7 @@
 
 .culinary-quiz .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #cfbd97 0%, #b8a67d 100%);
   transition: width 0.3s ease;
   border-radius: 10px;
 }
@@ -59,7 +59,7 @@
 .culinary-quiz .timer-value {
   font-size: 1.2rem;
   font-weight: bold;
-  color: #667eea;
+  color: #cfbd97;
   padding: 0.5rem 1rem;
   background: #f0f0f0;
   border-radius: 20px;
@@ -100,13 +100,13 @@
 
 .culinary-quiz .question-points {
   display: inline-block;
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-  color: #333;
+  background: linear-gradient(135deg, #cfbd97 0%, #e0d4b8 100%);
+  color: #000000;
   padding: 0.5rem 1.5rem;
   border-radius: 20px;
   font-weight: bold;
   font-size: 0.9rem;
-  box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 2px 10px rgba(207, 189, 151, 0.3);
 }
 
 .culinary-quiz .options-grid {
@@ -135,8 +135,8 @@
 
 .culinary-quiz .option-button:hover:not(.disabled) {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-  border-color: #667eea;
+  box-shadow: 0 8px 20px rgba(207, 189, 151, 0.3);
+  border-color: #cfbd97;
   background: #fff;
 }
 
@@ -177,8 +177,8 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #cfbd97 0%, #b8a67d 100%);
+  color: #000000;
   border-radius: 50%;
   font-weight: bold;
   font-size: 1.1rem;
@@ -249,8 +249,8 @@
 }
 
 .culinary-quiz .next-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #cfbd97 0%, #b8a67d 100%);
+  color: #000000;
   border: none;
   padding: 1rem 2.5rem;
   border-radius: 25px;
@@ -258,12 +258,12 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 15px rgba(207, 189, 151, 0.4);
 }
 
 .culinary-quiz .next-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 6px 20px rgba(207, 189, 151, 0.6);
 }
 
 /* Quiz Completed */
@@ -314,7 +314,7 @@
 }
 
 .culinary-quiz .score-item.highlight {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  background: linear-gradient(135deg, #cfbd97 0%, #e0d4b8 100%);
   transform: scale(1.05);
 }
 
@@ -335,11 +335,11 @@
   display: block;
   font-size: 2rem;
   font-weight: bold;
-  color: #667eea;
+  color: #cfbd97;
 }
 
 .culinary-quiz .score-item.highlight .score-value {
-  color: #333;
+  color: #000000;
 }
 
 .culinary-quiz .completion-message {
@@ -351,8 +351,8 @@
 }
 
 .culinary-quiz .restart-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #cfbd97 0%, #b8a67d 100%);
+  color: #000000;
   border: none;
   padding: 1.25rem 3rem;
   border-radius: 30px;
@@ -360,13 +360,13 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(207, 189, 151, 0.4);
   margin-top: 1rem;
 }
 
 .culinary-quiz .restart-button:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 8px 25px rgba(207, 189, 151, 0.6);
 }
 
 /* Responsive */

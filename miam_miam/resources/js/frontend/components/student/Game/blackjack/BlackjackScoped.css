@@ -1,14 +1,16 @@
 /* Scope tous les styles au jeu de Blackjack uniquement */
 .blackjack-game {
     font-family: 'Arial', sans-serif;
-    color: white;
+    color: #000000;
     padding: 20px;
+    background: #ffffff;
+    min-height: 100vh;
 }
 
 .blackjack-game .container {
     max-width: 800px;
     margin: 0 auto;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.85);
     border-radius: 15px;
     padding: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -16,7 +18,7 @@
 
 .blackjack-game h1 {
     text-align: center;
-    color: #ffd700;
+    color: #cfbd97;
     margin-bottom: 20px;
     font-size: 2.5em;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
@@ -38,7 +40,7 @@
 .blackjack-game .info-value {
     font-size: 1.5em;
     font-weight: bold;
-    color: #ffd700;
+    color: #cfbd97;
 }
 
 .blackjack-game .hands-container {
@@ -59,7 +61,7 @@
 .blackjack-game .hand-title {
     text-align: center;
     margin-bottom: 15px;
-    color: #ffd700;
+    color: #cfbd97;
     font-size: 1.2em;
 }
 
@@ -112,7 +114,7 @@
     text-align: center;
     font-weight: bold;
     width: 100%;
-    color: #ffd700;
+    color: #cfbd97;
     font-size: 1.1em;
 }
 
@@ -135,8 +137,8 @@
     padding: 12px 24px;
     border: none;
     border-radius: 8px;
-    background: #ffd700;
-    color: #000;
+    background: #cfbd97;
+    color: #000000;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -144,7 +146,7 @@
 }
 
 .blackjack-game button:hover:not(:disabled) {
-    background: #ffed4a;
+    background: #b8a67d;
     transform: translateY(-2px);
 }
 
@@ -175,10 +177,10 @@
 
 .blackjack-game input[type="number"] {
     padding: 12px;
-    border: 2px solid #ffd700;
+    border: 2px solid #cfbd97;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.9);
-    color: #000;
+    color: #000000;
     font-size: 1em;
     width: 120px;
     text-align: center;
@@ -205,14 +207,14 @@
 }
 
 .blackjack-game .info-message {
-    background: rgba(255, 215, 0, 0.3);
-    color: #ffd700;
+    background: rgba(207, 189, 151, 0.3);
+    color: #cfbd97;
 }
 
 .blackjack-game .special-condition {
-    background: rgba(255, 215, 0, 0.3);
-    color: #ffd700;
-    border: 2px solid #ffd700;
+    background: rgba(207, 189, 151, 0.3);
+    color: #cfbd97;
+    border: 2px solid #cfbd97;
     padding: 10px;
     border-radius: 8px;
     margin: 10px 0;

@@ -2,34 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-/* @import "tailwindcss";
+@layer base {
+  :root {
+    /* Couleurs principales */
+    --color-primary: #cfbd97;
+    --color-primary-light: #e0d4b8;
+    --color-primary-dark: #b8a67d;
+    --color-primary-hover: #b8a67d;
+    
+    /* Couleur secondaire */
+    --color-secondary: #000000;
+    --color-secondary-light: #333333;
+    --color-secondary-hover: #1a1a1a;
+    
+    /* Couleurs de base */
+    --color-background: #ffffff;
+    --color-foreground: #000000;
+    
+    /* Couleurs neutres */
+    --color-muted: #f5f5f5;
+    --color-muted-foreground: #737373;
+    --color-border: #e5e5e5;
+    
+    /* Couleurs d'état */
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+    
+    /* Autres */
+    --radius: 0.5rem;
+    --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  }
 
-@theme inline {
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 
-  --color-primary: #cfbd97;
-  --color-primary-dark: #b8a67d;
-  --color-secondary: #000000;
-  --color-background: #ffffff;
-  --color-foreground: #000000;
-  --color-muted: #f5f5f5;
-  --color-muted-foreground: #737373;
-  --color-border: #e5e5e5;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --radius: 0.5rem;
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    line-height: 1.6;
+  }
+  
+  /* Styles pour les boutons primaires */
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-secondary);
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--color-primary-dark);
+  }
+  
+  /* Styles pour les boutons secondaires */
+  .btn-secondary {
+    background-color: var(--color-secondary);
+    color: #ffffff;
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--color-secondary-light);
+  }
 }
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: var(--font-sans);
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  line-height: 1.6;
-} */
