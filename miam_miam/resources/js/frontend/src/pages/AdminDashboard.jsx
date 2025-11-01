@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Chart } from 'chart.js/auto'
 import { mockUsers as initialUsers, mockPromotions as initialPromotions, mockMenuItems as initialMenuItems } from "../data/mockData"
-import { Ban, Clock, Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight , Eye, EyeOff, Package, Calendar, TrendingUp,CheckCircle} from "lucide-react"
+import { Ban, Clock, Users, Tag, Edit, Trash2, Plus, Search, UserCog, BarChart3, Settings, Bell, Shield, FileText, Gamepad2, Trophy, Play, Pause, RotateCcw, Menu, X, Home, ChevronLeft, ChevronRight , Eye, EyeOff, Package, Calendar, TrendingUp, CheckCircle, Gift, Loader2 } from "lucide-react"
 import FadeInOnScroll from "../components/FadeInOnScroll"
 
 export default function AdminDashboard() {
