@@ -28,13 +28,14 @@ class HomeController extends Controller
 
     /**
      * Retourne les événements à venir pour la home page
-     * Seuls les événements configurés par l'admin et actifs sont retournés
+     * Événements de type 'evenement' qui ne sont pas encore passés
      */
     public function evenementsAVenir()
     {
-        $evenements = Evenement::actif()
-            ->where('type', 'evenement')
-            ->orderBy('date_debut', 'desc')
+        $evenements = Evenement::where('type', 'evenement')
+            ->where('active', 'oui')
+            ->where('date_fin', '>=', now())
+            ->orderBy('date_debut', 'asc')
             ->get();
 
         return response()->json([
@@ -49,10 +50,9 @@ class HomeController extends Controller
      */
     public function homeData()
     {
-        // Récupérer les données du top 10 clients
-        $dashboardController = new DashboardController();
-        $top10Response = $dashboardController->top10Clients();
-        $top10Data = json_decode($top10Response->getContent(), true);
+        // Récupérer le top 5 des meilleurs clients (accessible sans authentification)
+        $top5Clients = $this->top5Clients();
+        $top5Data = json_decode($top5Clients->getContent(), true);
 
         // Récupérer les promotions actives (événements de type promotion)
         $promotions = Evenement::actif()
@@ -60,26 +60,41 @@ class HomeController extends Controller
             ->orderBy('date_debut', 'desc')
             ->get();
 
-        // Récupérer les événements à venir (événements de type evenement)
-        $evenements = Evenement::actif()
-            ->where('type', 'evenement')
-            ->orderBy('date_debut', 'desc')
-            ->get();
-
-        // Récupérer les jeux actifs (événements de type jeu)
-        $jeux = Evenement::actif()
-            ->byType('jeu')
-            ->orderBy('date_debut', 'desc')
+        // Récupérer les événements à venir (événements de type evenement qui ne sont pas passés)
+        $evenements = Evenement::where('type', 'evenement')
+            ->where('active', 'oui')
+            ->where('date_fin', '>=', now())
+            ->orderBy('date_debut', 'asc')
             ->get();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'top_clients' => $top10Data['data']['top_clients'] ?? [],
+                'top_clients' => $top5Data['data']['top_clients'] ?? [],
                 'promotions_actives' => EvenementResource::collection($promotions),
                 'evenements_a_venir' => EvenementResource::collection($evenements),
-                'jeux_actifs' => EvenementResource::collection($jeux),
             ],
+        ]);
+    }
+
+    /**
+     * Retourne le top 5 des meilleurs clients du mois (accessible sans authentification)
+     */
+    public function top5Clients()
+    {
+        $dashboardController = new DashboardController();
+        $top10Response = $dashboardController->top10Clients();
+        $top10Data = json_decode($top10Response->getContent(), true);
+        
+        // Limiter aux 5 premiers clients
+        $top5 = array_slice($top10Data['data']['top_clients'] ?? [], 0, 5);
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'top_clients' => $top5,
+                'mois' => $top10Data['data']['mois'] ?? ''
+            ]
         ]);
     }
 }

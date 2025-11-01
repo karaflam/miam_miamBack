@@ -65,6 +65,16 @@ class Evenement extends Model
         return $query->where('type', 'promotion');
     }
 
+    public function scopeByType($query, $type)
+    {
+        return $query->where('type', $type);
+    }
+
+    public function scopeEvenements($query)
+    {
+        return $query->where('type', 'evenement');
+    }
+
     /**
      * Vérifier si l'utilisateur peut utiliser ce jeu aujourd'hui
      * Pour les JEUX: limite_utilisation = nombre d'essais par jour par utilisateur

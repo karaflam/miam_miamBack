@@ -195,7 +195,7 @@ export default function StudentDashboard() {
     if (activeTab === "reclamations") {
       fetchReclamations();
     }
-    if (activeTab === "events" || activeTab === "games") {
+    if (activeTab === "events") {
       fetchEvents();
     }
   }, [activeTab, selectedCategory, searchMenuTerm]);
@@ -632,7 +632,6 @@ export default function StudentDashboard() {
               { id: "reclamations", label: "Réclamations", icon: MessageSquare },
               { id: "referral", label: "Parrainage", icon: Gift },
               { id: "events", label: "Événements", icon: Calendar },
-              { id: "games", label: "Mini-jeux", icon: Gamepad2 },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1164,9 +1163,9 @@ export default function StudentDashboard() {
             {activeTab === "events" && (
               <div className="bg-white rounded-xl p-8 shadow-lg">
                 <div className="mb-6">
-                  <h2 className="text-2xl font-bold mb-2">Événements actifs</h2>
+                  <h2 className="text-2xl font-bold mb-2">Événements & Jeux</h2>
                   <p className="text-muted-foreground">
-                    Découvrez nos promotions, jeux et événements spéciaux
+                    Découvrez nos promotions, jeux et événements spéciaux activés par l'équipe
                   </p>
                 </div>
 
@@ -1324,114 +1323,6 @@ export default function StudentDashboard() {
               </div>
             )}
 
-            {activeTab === "games" && (
-              <div className="bg-white rounded-xl p-8 shadow-lg">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold mb-2">Mini-jeux</h2>
-                  <p className="text-muted-foreground">
-                    Jouez à nos mini-jeux configurés par l'admin et gagnez des points de fidélité supplémentaires!
-                  </p>
-                </div>
-
-                {isLoadingEvents ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-                    <p className="text-muted-foreground">Chargement des jeux...</p>
-                  </div>
-                ) : (
-                  <>
-                    {(() => {
-                      // Filtrer uniquement les jeux actifs
-                      const activeGames = events.filter(event => 
-                        event.type === 'jeu' && 
-                        event.active === 'oui' &&
-                        new Date(event.date_debut) <= new Date() &&
-                        new Date(event.date_fin) >= new Date()
-                      );
-
-                      if (activeGames.length === 0) {
-                        return (
-                          <div className="text-center py-12">
-                            <Gamepad2 className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400" />
-                            <p className="text-muted-foreground text-lg">
-                              Aucun jeu disponible pour le moment. Les jeux sont configurés par l'administrateur.
-                            </p>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {activeGames.map((game) => (
-                            <div
-                              key={game.id_evenement}
-                              onClick={() => handleParticipate(game.id_evenement)}
-                              className="bg-gradient-to-br from-white to-muted rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 cursor-pointer transform hover:scale-105"
-                            >
-                              <div className="relative h-48 overflow-hidden">
-                                {game.url_affiche ? (
-                                  <img
-                                    src={game.url_affiche.startsWith('http') ? game.url_affiche : `http://localhost:8000${game.url_affiche}`}
-                                    alt={game.titre}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => e.target.src = '/placeholder.svg'}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                                    <Gamepad2 className="w-16 h-16 text-primary" />
-                                  </div>
-                                )}
-                                <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-semibold">
-                                  Jeu
-                                </div>
-                              </div>
-                              <div className="p-6">
-                                <h3 className="text-xl font-bold mb-2 text-gray-900">{game.titre}</h3>
-                                {game.description && (
-                                  <p className="text-muted-foreground mb-4 text-sm line-clamp-2">
-                                    {game.description}
-                                  </p>
-                                )}
-                                <div className="space-y-2 mb-4 text-xs text-gray-600">
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-primary" />
-                                    <span>
-                                      Du {new Date(game.date_debut).toLocaleDateString('fr-FR')} au{' '}
-                                      {new Date(game.date_fin).toLocaleDateString('fr-FR')}
-                                    </span>
-                                  </div>
-                                  {(game.limite_utilisation ?? 0) > 0 && (
-                                    <div className="text-muted-foreground">
-                                      Max {game.limite_utilisation} partie(s) par jour
-                                    </div>
-                                  )}
-                                  {game.valeur_remise && (
-                                    <div className="flex items-center gap-2 text-primary font-semibold">
-                                      <Award className="w-4 h-4" />
-                                      <span>
-                                        {game.type_remise === 'point_bonus' 
-                                          ? `${game.valeur_remise} points bonus`
-                                          : game.type_remise === 'pourcentage'
-                                          ? `${game.valeur_remise}% de réduction`
-                                          : `${game.valeur_remise} FCFA de réduction`}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="w-full bg-primary text-secondary px-4 py-2 rounded-lg font-semibold text-center hover:bg-primary-dark transition-colors flex items-center justify-center gap-2">
-                                  <Gamepad2 className="w-4 h-4" />
-                                  Jouer
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Cart Sidebar */}

@@ -28,6 +28,13 @@ export default function AdminDashboard() {
   const [editingMenuItem, setEditingMenuItem] = useState(null)
   const [showGameConfigModal, setShowGameConfigModal] = useState(false)
   const [editingGame, setEditingGame] = useState(null)
+  
+  // États pour la gestion des événements (remplace games et promotions)
+  const [events, setEvents] = useState([])
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+  const [showEventFormModal, setShowEventFormModal] = useState(false)
+  const [editingEvent, setEditingEvent] = useState(null)
+  const [eventTypeFilter, setEventTypeFilter] = useState('all') // all, promotion, jeu, evenement
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
@@ -82,11 +89,17 @@ export default function AdminDashboard() {
   });
 
   const [eventFormData, setEventFormData] = useState({
-    title: "",
+    titre: "",
     description: "",
-    date: "",
-    time: "",
-    maxParticipants: "",
+    type: "evenement", // promotion, jeu, evenement
+    code_promo: "",
+    type_remise: "pourcentage", // pourcentage, fixe, point_bonus
+    valeur_remise: "",
+    date_debut: "",
+    date_fin: "",
+    active: "oui",
+    limite_utilisation: "",
+    affiche: null,
   })
 
   // États et données pour les mini-jeux
@@ -485,6 +498,175 @@ useEffect(() => {
   }
 }, [activeTab]);
 
+// ============================================
+// GESTION DES ÉVÉNEMENTS (Promotions, Jeux, Événements)
+// ============================================
+
+const fetchEvents = async () => {
+  setIsLoadingEvents(true);
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch('http://localhost:8000/api/evenements', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    if (data.success || Array.isArray(data.data)) {
+      setEvents(data.data || data);
+    }
+  } catch (error) {
+    console.error('Erreur chargement événements:', error);
+  } finally {
+    setIsLoadingEvents(false);
+  }
+};
+
+const handleCreateOrUpdateEvent = async () => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    const formData = new FormData();
+    
+    // Ajouter tous les champs
+    Object.keys(eventFormData).forEach(key => {
+      if (key === 'affiche' && eventFormData[key]) {
+        formData.append(key, eventFormData[key]);
+      } else if (eventFormData[key] !== null && eventFormData[key] !== '') {
+        formData.append(key, eventFormData[key]);
+      }
+    });
+
+    const url = editingEvent 
+      ? `http://localhost:8000/api/evenements/${editingEvent.id_evenement}`
+      : 'http://localhost:8000/api/evenements';
+    
+    const response = await fetch(url, {
+      method: editingEvent ? 'POST' : 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      },
+      body: formData
+    });
+
+    if (editingEvent) {
+      formData.append('_method', 'PUT');
+    }
+
+    const data = await response.json();
+    
+    if (data.success || data.data) {
+      alert(editingEvent ? 'Événement modifié avec succès!' : 'Événement créé avec succès!');
+      setShowEventFormModal(false);
+      resetEventForm();
+      fetchEvents();
+    } else {
+      alert('Erreur: ' + (data.message || 'Impossible de sauvegarder'));
+    }
+  } catch (error) {
+    console.error('Erreur sauvegarde événement:', error);
+    alert('Erreur lors de la sauvegarde');
+  }
+};
+
+const handleDeleteEvent = async (id) => {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) return;
+  
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`http://localhost:8000/api/evenements/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    if (data.deleted || data.success) {
+      alert('Événement supprimé avec succès!');
+      fetchEvents();
+    }
+  } catch (error) {
+    console.error('Erreur suppression événement:', error);
+    alert('Erreur lors de la suppression');
+  }
+};
+
+const handleToggleEvent = async (id) => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`http://localhost:8000/api/evenements/${id}/toggle`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    if (data.success || data.data) {
+      fetchEvents();
+    }
+  } catch (error) {
+    console.error('Erreur toggle événement:', error);
+  }
+};
+
+const openEditEventModal = (event) => {
+  setEditingEvent(event);
+  setEventFormData({
+    titre: event.titre || '',
+    description: event.description || '',
+    type: event.type || 'evenement',
+    code_promo: event.code_promo || '',
+    type_remise: event.type_remise || 'pourcentage',
+    valeur_remise: event.valeur_remise?.toString() || '',
+    date_debut: event.date_debut || '',
+    date_fin: event.date_fin || '',
+    active: event.active || 'oui',
+    limite_utilisation: event.limite_utilisation?.toString() || '',
+    affiche: null
+  });
+  setShowEventFormModal(true);
+};
+
+const resetEventForm = () => {
+  setEventFormData({
+    titre: '',
+    description: '',
+    type: 'evenement',
+    code_promo: '',
+    type_remise: 'pourcentage',
+    valeur_remise: '',
+    date_debut: '',
+    date_fin: '',
+    active: 'oui',
+    limite_utilisation: '',
+    affiche: null
+  });
+  setEditingEvent(null);
+};
+
+const handleEventFormChange = (e) => {
+  const { name, value, type, files } = e.target;
+  setEventFormData(prev => ({
+    ...prev,
+    [name]: type === 'file' ? files[0] : value
+  }));
+};
+
+useEffect(() => {
+  if (activeTab === "events") {
+    fetchEvents();
+  }
+}, [activeTab]);
+
+// ============================================
+// FIN GESTION DES ÉVÉNEMENTS
+// ============================================
 
   const handleUserFormChange = (e) => {
     const { name, value } = e.target
@@ -499,14 +681,6 @@ useEffect(() => {
     setPromoFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : name === "discount" ? Number.parseInt(value) || 0 : value,
-    }))
-  }
-
-  const handleEventFormChange = (e) => {
-    const { name, value } = e.target
-    setEventFormData((prev) => ({
-      ...prev,
-      [name]: value,
     }))
   }
 
@@ -779,16 +953,6 @@ useEffect(() => {
       active: true,
       startDate: "",
       endDate: "",
-    })
-  }
-
-  const resetEventForm = () => {
-    setEventFormData({
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      maxParticipants: "",
     })
   }
 
@@ -1185,8 +1349,7 @@ useEffect(() => {
             { id: "users", label: "Utilisateurs", icon: Users },
             { id: "menu", label: "Menu", icon: Tag },
             { id: "stock", label: "Stock", icon: Package },
-            { id: "promotions", label: "Promotions", icon: Tag },
-            { id: "games", label: "Mini-Jeux", icon: Gamepad2 },
+            { id: "events", label: "Événements & Jeux", icon: Calendar },
             { id: "settings", label: "Paramètres", icon: Settings },
           ].map((tab) => (
             <div key={tab.id} className="relative group">
@@ -2086,37 +2249,84 @@ useEffect(() => {
           </div>
         )}
 
-        {activeTab === "games" && (
+        {activeTab === "events" && (
           <div className="mt-4 lg:mt-0">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
-                <h2 className="text-2xl font-bold">Gestion des Mini-Jeux</h2>
-                <p className="text-muted-foreground">Configurez et gérez les jeux disponibles pour vos clients</p>
+                <h2 className="text-2xl font-bold">Gestion des Événements, Promotions & Jeux</h2>
+                <p className="text-muted-foreground">Créez et gérez tous vos événements depuis une seule interface</p>
               </div>
               <button
                 onClick={() => {
-                  setEditingGame(null)
-                  resetGameForm()
-                  setShowGameConfigModal(true)
+                  setEditingEvent(null);
+                  resetEventForm();
+                  setShowEventFormModal(true);
                 }}
                 className="bg-primary text-secondary px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors flex items-center gap-2"
               >
                 <Plus className="w-5 h-5" />
-                Nouveau Jeu
+                Nouvel Événement
               </button>
             </div>
 
-            {/* Statistiques des jeux */}
+            {/* Filtres par type */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+              <button
+                onClick={() => setEventTypeFilter('all')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+                  eventTypeFilter === 'all' 
+                    ? 'bg-primary text-secondary' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setEventTypeFilter('promotion')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+                  eventTypeFilter === 'promotion' 
+                    ? 'bg-primary text-secondary' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Gift className="w-4 h-4 inline mr-2" />
+                Promotions
+              </button>
+              <button
+                onClick={() => setEventTypeFilter('jeu')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+                  eventTypeFilter === 'jeu' 
+                    ? 'bg-primary text-secondary' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Gamepad2 className="w-4 h-4 inline mr-2" />
+                Jeux
+              </button>
+              <button
+                onClick={() => setEventTypeFilter('evenement')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+                  eventTypeFilter === 'evenement' 
+                    ? 'bg-primary text-secondary' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Calendar className="w-4 h-4 inline mr-2" />
+                Événements
+              </button>
+            </div>
+
+            {/* Statistiques */}
             <FadeInOnScroll>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
-                      <Gamepad2 className="w-6 h-6 text-primary" />
+                      <Calendar className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Jeux Actifs</p>
-                      <p className="text-2xl font-bold">{games.filter(g => g.active).length}</p>
+                      <p className="text-sm text-muted-foreground">Total Événements</p>
+                      <p className="text-2xl font-bold">{events.length}</p>
                     </div>
                   </div>
                 </div>
@@ -2124,11 +2334,11 @@ useEffect(() => {
                 <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                      <Play className="w-6 h-6 text-green-600" />
+                      <CheckCircle className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Parties Jouées</p>
-                      <p className="text-2xl font-bold">1,247</p>
+                      <p className="text-sm text-muted-foreground">Actifs</p>
+                      <p className="text-2xl font-bold">{events.filter(e => e.active === 'oui').length}</p>
                     </div>
                   </div>
                 </div>
@@ -2136,11 +2346,11 @@ useEffect(() => {
                 <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-yellow-600" />
+                      <Gift className="w-6 h-6 text-yellow-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Points Distribués</p>
-                      <p className="text-2xl font-bold">45,680</p>
+                      <p className="text-sm text-muted-foreground">Promotions</p>
+                      <p className="text-2xl font-bold">{events.filter(e => e.type === 'promotion').length}</p>
                     </div>
                   </div>
                 </div>
@@ -2148,93 +2358,151 @@ useEffect(() => {
                 <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Users className="w-6 h-6 text-blue-600" />
+                      <Gamepad2 className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Joueurs Actifs</p>
-                      <p className="text-2xl font-bold">324</p>
+                      <p className="text-sm text-muted-foreground">Jeux</p>
+                      <p className="text-2xl font-bold">{events.filter(e => e.type === 'jeu').length}</p>
                     </div>
                   </div>
                 </div>
               </div>
             </FadeInOnScroll>
 
-            {/* Liste des jeux */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {games.map((game, index) => (
-                <FadeInOnScroll key={game.id} delay={index * 150}>
-                  <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          game.active ? 'bg-green-100' : 'bg-gray-100'
-                        }`}>
-                          <Gamepad2 className={`w-6 h-6 ${
-                            game.active ? 'text-green-600' : 'text-gray-400'
-                          }`} />
+            {/* Liste des événements */}
+            {isLoadingEvents ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">Chargement des événements...</p>
+              </div>
+            ) : events.filter(event => eventTypeFilter === 'all' || event.type === eventTypeFilter).length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl">
+                <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400" />
+                <p className="text-muted-foreground text-lg">Aucun événement trouvé</p>
+                <button
+                  onClick={() => {
+                    setEditingEvent(null);
+                    resetEventForm();
+                    setShowEventFormModal(true);
+                  }}
+                  className="mt-4 inline-flex items-center gap-2 bg-primary text-secondary px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  Créer un événement
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events
+                  .filter(event => eventTypeFilter === 'all' || event.type === eventTypeFilter)
+                  .map((event, index) => (
+                  <FadeInOnScroll key={event.id_evenement} delay={index * 100}>
+                    <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105">
+                      {/* Image/Affiche */}
+                      <div className="relative h-48 overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10">
+                        {event.url_affiche ? (
+                          <img
+                            src={event.url_affiche.startsWith('http') ? event.url_affiche : `http://localhost:8000${event.url_affiche}`}
+                            alt={event.titre}
+                            className="w-full h-full object-cover"
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            {event.type === 'promotion' && <Gift className="w-16 h-16 text-primary" />}
+                            {event.type === 'jeu' && <Gamepad2 className="w-16 h-16 text-primary" />}
+                            {event.type === 'evenement' && <Calendar className="w-16 h-16 text-primary" />}
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3">
+                          <span className="px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-semibold">
+                            {event.type === 'promotion' && 'Promotion'}
+                            {event.type === 'jeu' && 'Jeu'}
+                            {event.type === 'evenement' && 'Événement'}
+                          </span>
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-lg">{game.name}</h3>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            game.active 
+                        <div className="absolute top-3 right-3">
+                          <button
+                            onClick={() => handleToggleEvent(event.id_evenement)}
+                            className={`p-2 rounded-full transition-colors ${
+                              event.active === 'oui'
+                                ? 'bg-green-500 text-white hover:bg-green-600' 
+                                : 'bg-gray-500 text-white hover:bg-gray-600'
+                            }`}
+                            title={`${event.active === 'oui' ? 'Désactiver' : 'Activer'}`}
+                          >
+                            {event.active === 'oui' ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Contenu */}
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-bold text-lg line-clamp-2">{event.titre}</h3>
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
+                            event.active === 'oui' 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-gray-100 text-gray-600'
                           }`}>
-                            {game.active ? 'Actif' : 'Inactif'}
+                            {event.active === 'oui' ? 'Actif' : 'Inactif'}
                           </span>
                         </div>
+                        
+                        <p className="text-gray-600 mb-4 text-sm line-clamp-2">{event.description || 'Aucune description'}</p>
+                        
+                        <div className="space-y-2 mb-4 text-sm">
+                          {event.code_promo && (
+                            <div className="flex items-center gap-2">
+                              <Tag className="w-4 h-4 text-primary" />
+                              <span className="font-mono font-semibold">{event.code_promo}</span>
+                            </div>
+                          )}
+                          {event.valeur_remise && (
+                            <div className="flex items-center gap-2">
+                              <Gift className="w-4 h-4 text-primary" />
+                              <span>
+                                {event.type_remise === 'pourcentage' && `-${event.valeur_remise}%`}
+                                {event.type_remise === 'fixe' && `-${event.valeur_remise} FCFA`}
+                                {event.type_remise === 'point_bonus' && `+${event.valeur_remise} points`}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Calendar className="w-4 h-4" />
+                            <span className="text-xs">
+                              {new Date(event.date_debut).toLocaleDateString('fr-FR')} - {new Date(event.date_fin).toLocaleDateString('fr-FR')}
+                            </span>
+                          </div>
+                          {event.limite_utilisation > 0 && (
+                            <div className="text-xs text-gray-500">
+                              Limite: {event.nombre_utilisation || 0} / {event.limite_utilisation}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openEditEventModal(event)}
+                            className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvent(event.id_evenement)}
+                            className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Supprimer
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => toggleGameStatus(game.id)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          game.active 
-                            ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                            : 'bg-green-100 text-green-600 hover:bg-green-200'
-                        }`}
-                      >
-                        {game.active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                      </button>
                     </div>
-                    
-                    <p className="text-gray-600 mb-4 text-sm">{game.description}</p>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-500">Coût de jeu</p>
-                        <p className="font-semibold">{game.costToPlay} points</p>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-500">Limite/jour</p>
-                        <p className="font-semibold">{game.dailyLimit} fois</p>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-500">Points min</p>
-                        <p className="font-semibold">{game.minPoints}</p>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-500">Points max</p>
-                        <p className="font-semibold">{game.maxPoints}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditGame(game)}
-                        className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                      >
-                        Configurer
-                      </button>
-                      <button
-                        onClick={() => handleDeleteGame(game.id)}
-                        className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </div>
-                </FadeInOnScroll>
-              ))}
-            </div>
+                  </FadeInOnScroll>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -2885,62 +3153,133 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Event Modal */}
-      {showEventModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full">
+      {/* Event Form Modal - Gestion Événements/Promotions/Jeux */}
+      {showEventFormModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-2xl w-full my-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-                <Plus className="w-6 h-6 text-blue-500" />
+              <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="text-2xl font-bold">Nouvel Événement</h3>
+              <h3 className="text-2xl font-bold">
+                {editingEvent ? "Modifier l'événement" : "Nouvel Événement"}
+              </h3>
             </div>
             
-            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setShowEventModal(false); }}>
+            <form 
+              className="space-y-4" 
+              onSubmit={(e) => { 
+                e.preventDefault(); 
+                handleCreateOrUpdateEvent(); 
+              }}
+            >
+              {/* Type d'événement */}
               <div>
-                <label className="block text-sm font-medium mb-2">Titre de l'événement</label>
+                <label className="block text-sm font-medium mb-2">Type *</label>
+                <select
+                  name="type"
+                  value={eventFormData.type}
+                  onChange={handleEventFormChange}
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                  required
+                >
+                  <option value="evenement">Événement</option>
+                  <option value="promotion">Promotion</option>
+                  <option value="jeu">Jeu (Blackjack, Quiz)</option>
+                </select>
+              </div>
+
+              {/* Titre */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Titre *</label>
                 <input 
                   type="text" 
-                  name="title"
-                  value={eventFormData.title}
+                  name="titre"
+                  value={eventFormData.titre}
                   onChange={handleEventFormChange}
-                  placeholder="Ex: Soirée Quiz Étudiante" 
+                  placeholder="Ex: Blackjack, Quiz Culinaire, -20% sur Ndolé" 
                   className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
                   required 
                 />
               </div>
               
+              {/* Description */}
               <div>
                 <label className="block text-sm font-medium mb-2">Description</label>
                 <textarea 
                   name="description"
                   value={eventFormData.description}
                   onChange={handleEventFormChange}
-                  placeholder="Décrivez l'événement..." 
+                  placeholder="Décrivez l'événement, jeu ou promotion..." 
                   rows="3" 
                   className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary resize-none"
-                  required
                 ></textarea>
               </div>
 
+              {/* Code promo (pour promotions) */}
+              {eventFormData.type === 'promotion' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Code Promo</label>
+                  <input 
+                    type="text" 
+                    name="code_promo"
+                    value={eventFormData.code_promo}
+                    onChange={handleEventFormChange}
+                    placeholder="Ex: PROMO20" 
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary uppercase"
+                  />
+                </div>
+              )}
+
+              {/* Type de remise et valeur */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Date</label>
+                  <label className="block text-sm font-medium mb-2">Type de remise</label>
+                  <select
+                    name="type_remise"
+                    value={eventFormData.type_remise}
+                    onChange={handleEventFormChange}
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="pourcentage">Pourcentage</option>
+                    <option value="fixe">Montant fixe</option>
+                    <option value="point_bonus">Points bonus</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Valeur</label>
+                  <input 
+                    type="number" 
+                    name="valeur_remise"
+                    value={eventFormData.valeur_remise}
+                    onChange={handleEventFormChange}
+                    placeholder="Ex: 20" 
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date de début *</label>
                   <input 
                     type="date" 
-                    name="date"
-                    value={eventFormData.date}
+                    name="date_debut"
+                    value={eventFormData.date_debut}
                     onChange={handleEventFormChange}
                     className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
                     required 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Heure</label>
+                  <label className="block text-sm font-medium mb-2">Date de fin *</label>
                   <input 
-                    type="time" 
-                    name="time"
-                    value={eventFormData.time}
+                    type="date" 
+                    name="date_fin"
+                    value={eventFormData.date_fin}
                     onChange={handleEventFormChange}
                     className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
                     required 
@@ -2948,23 +3287,61 @@ useEffect(() => {
                 </div>
               </div>
 
+              {/* Limite d'utilisation */}
               <div>
-                <label className="block text-sm font-medium mb-2">Participants max</label>
+                <label className="block text-sm font-medium mb-2">
+                  Limite d'utilisation 
+                  <span className="text-xs text-gray-500 ml-2">
+                    (0 = illimité, pour jeux = max/jour/user)
+                  </span>
+                </label>
                 <input 
                   type="number" 
-                  name="maxParticipants"
-                  value={eventFormData.maxParticipants}
+                  name="limite_utilisation"
+                  value={eventFormData.limite_utilisation}
                   onChange={handleEventFormChange}
-                  placeholder="50" 
+                  placeholder="0" 
                   className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                  min="0"
                 />
               </div>
-              
+
+              {/* Upload affiche */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Affiche (image)</label>
+                <input 
+                  type="file" 
+                  name="affiche"
+                  onChange={handleEventFormChange}
+                  accept="image/*"
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                />
+                <p className="text-xs text-gray-500 mt-1">JPG, PNG, WEBP (max 3MB)</p>
+              </div>
+
+              {/* Statut actif */}
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="active"
+                  name="active"
+                  checked={eventFormData.active === 'oui'}
+                  onChange={(e) => handleEventFormChange({
+                    target: { name: 'active', value: e.target.checked ? 'oui' : 'non' }
+                  })}
+                  className="w-5 h-5"
+                />
+                <label htmlFor="active" className="text-sm font-medium cursor-pointer">
+                  Activer immédiatement (les étudiants pourront voir cet événement)
+                </label>
+              </div>
+
+              {/* Boutons */}
               <div className="flex gap-3 pt-4">
                 <button 
                   type="button" 
                   onClick={() => {
-                    setShowEventModal(false);
+                    setShowEventFormModal(false);
                     resetEventForm();
                   }}
                   className="flex-1 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
@@ -2973,9 +3350,9 @@ useEffect(() => {
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+                  className="flex-1 bg-primary text-secondary py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
                 >
-                  Créer l'événement
+                  {editingEvent ? "Modifier" : "Créer"}
                 </button>
               </div>
             </form>

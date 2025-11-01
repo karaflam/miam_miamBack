@@ -52,6 +52,7 @@ Route::post('/cinetpay/notify', [PaiementController::class, 'notify']);
 
 // Routes publiques pour la home page
 Route::get('/top10-clients', [DashboardController::class, 'top10Clients']);
+Route::get('/top5-clients', [HomeController::class, 'top5Clients']); // Top 5 pour homepage
 Route::get('/promotions-actives', [HomeController::class, 'promotionsActives']);
 Route::get('/evenements-a-venir', [HomeController::class, 'evenementsAVenir']);
 Route::get('/home-data', [HomeController::class, 'homeData']);
