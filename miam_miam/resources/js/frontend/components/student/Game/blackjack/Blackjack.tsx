@@ -6,6 +6,11 @@ interface Card {
   couleur: string;
 }
 
+interface Card {
+  valeur: string;
+  couleur: string;
+}
+
 interface GameState {
   solde: number;
   mise: number;
@@ -20,7 +25,11 @@ interface GameState {
   pointsFidelite: number;
 }
 
-const Jeu21: React.FC = () => {
+interface Jeu21Props {
+  onClose?: () => void;
+}
+
+const Jeu21: React.FC<Jeu21Props> = ({ onClose }) => {
   const [gameState, setGameState] = useState<GameState>({
     solde: 100,
     mise: 0,
@@ -282,6 +291,22 @@ const Jeu21: React.FC = () => {
     if (partieTerminee) {
       setTimeout(() => {
         alert(`🎮 Partie terminée!\n\n💰 Solde final: ${nouveauSolde}€\n🎯 Tours joués: ${gameState.nombreTours}\n⭐ Points de fidélité gagnés: ${pointsFideliteGagnes}\n\n${pointsFideliteGagnes > 0 ? '✅ Vos points ont été ajoutés à votre compte!' : '💡 Atteignez 500€ pour gagner des points!'}`);
+        
+        // Sortie automatique après la fin
+        if (onClose) {
+          setTimeout(() => onClose(), 500);
+        }
+      }, 1000);
+    }
+    
+    // Vérifier défaite immédiate (solde = 0)
+    if (nouveauSolde <= 0) {
+      setTimeout(() => {
+        alert(`😢 Défaite!\n\nVous n'avez plus de jetons.\nSolde final: 0€\nTours joués: ${gameState.nombreTours}`);
+        
+        if (onClose) {
+          setTimeout(() => onClose(), 500);
+        }
       }, 1000);
     }
   };
@@ -374,7 +399,29 @@ const Jeu21: React.FC = () => {
   return (
     <div className="blackjack-game">
       <div className="container">
-        <h1>🎰 Black-Jack 🎰</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h1>🎰 Black-Jack 🎰</h1>
+          {onClose && (
+            <button 
+              onClick={onClose}
+              style={{
+                padding: '10px 20px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                backgroundColor: '#e74c3c',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c0392b'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#e74c3c'}
+            >
+              ✕ Quitter
+            </button>
+          )}
+        </div>
       
       <div className="game-info">
         <div className="info-item">

@@ -17,9 +17,10 @@ interface QuizState {
 
 interface CulinaryQuizProps {
   onComplete?: (points: number) => void;
+  onClose?: () => void;
 }
 
-const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
+const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete, onClose }) => {
   // Initialiser avec 10 questions aléatoires
   const [quizState, setQuizState] = useState<QuizState>(() => ({
     currentQuestion: 0,
@@ -94,6 +95,14 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
       
       if (onComplete) {
         onComplete(pointsFidelite);
+      }
+      
+      // Sortie automatique après 3 secondes
+      if (onClose) {
+        setTimeout(() => {
+          alert(`🎮 Quiz terminé!\n\n🎯 Score: ${finalScore}/10\n⭐ Points de fidélité gagnés: ${pointsFidelite}\n\n${pointsFidelite > 0 ? '✅ Vos points ont été ajoutés !' : '💡 Obtenez au moins 5/10 pour gagner des points!'}`);
+          setTimeout(() => onClose(), 500);
+        }, 1500);
       }
       
       // Synchroniser avec le backend
@@ -220,6 +229,28 @@ const CulinaryQuiz: React.FC<CulinaryQuizProps> = ({ onComplete }) => {
   return (
     <div className="culinary-quiz">
       <div className="quiz-container">
+      {onClose && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+          <button 
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              backgroundColor: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'background-color 0.3s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c0392b'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#e74c3c'}
+          >
+            ✕ Quitter
+          </button>
+        </div>
+      )}
       <div className="quiz-header">
         <div className="quiz-info">
           <span className="question-counter">
