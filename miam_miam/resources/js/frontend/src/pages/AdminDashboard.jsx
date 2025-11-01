@@ -101,6 +101,16 @@ export default function AdminDashboard() {
     limite_utilisation: "",
     affiche: null,
   })
+  
+  // État pour le modal de modification des jeux intégrés
+  const [showIntegratedGameModal, setShowIntegratedGameModal] = useState(false)
+  const [integratedGameData, setIntegratedGameData] = useState({
+    id_evenement: null,
+    titre: "",
+    limite_utilisation: "",
+    valeur_remise: "",
+    description: ""
+  })
 
   // États et données pour les mini-jeux
   const [games, setGames] = useState([
@@ -625,12 +635,20 @@ const handleToggleEvent = async (id) => {
 };
 
 const openEditEventModal = (event) => {
-  // Empêcher l'édition des jeux intégrés
+  // Pour les jeux intégrés, ouvrir un modal spécial
   if (event.is_integrated) {
-    alert('Les jeux intégrés (Blackjack, Quiz) ne peuvent pas être modifiés. Seul leur statut actif/inactif peut être changé via le toggle.');
+    setIntegratedGameData({
+      id_evenement: event.id_evenement,
+      titre: event.titre,
+      limite_utilisation: event.limite_utilisation?.toString() || '',
+      valeur_remise: event.valeur_remise?.toString() || '',
+      description: event.description || ''
+    });
+    setShowIntegratedGameModal(true);
     return;
   }
   
+  // Pour les événements normaux
   setEditingEvent(event);
   setEventFormData({
     titre: event.titre || '',
@@ -671,6 +689,47 @@ const handleEventFormChange = (e) => {
     ...prev,
     [name]: type === 'file' ? files[0] : value
   }));
+};
+
+// Gérer les changements dans le modal jeux intégrés
+const handleIntegratedGameChange = (e) => {
+  const { name, value } = e.target;
+  setIntegratedGameData(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
+
+// Sauvegarder les modifications d'un jeu intégré
+const handleSaveIntegratedGame = async () => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`http://localhost:8000/api/evenements/${integratedGameData.id_evenement}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        limite_utilisation: parseInt(integratedGameData.limite_utilisation),
+        valeur_remise: parseFloat(integratedGameData.valeur_remise),
+        description: integratedGameData.description
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success || data.data) {
+      alert('Jeu mis à jour avec succès!');
+      setShowIntegratedGameModal(false);
+      fetchEvents();
+    } else {
+      alert('Erreur: ' + (data.message || 'Impossible de sauvegarder'));
+    }
+  } catch (error) {
+    console.error('Erreur sauvegarde jeu intégré:', error);
+    alert('Erreur lors de la sauvegarde');
+  }
 };
 
 useEffect(() => {
@@ -2504,14 +2563,9 @@ useEffect(() => {
                         
                         <div className="flex gap-2">
                           <button
-                            onClick={() => !event.is_integrated && openEditEventModal(event)}
-                            disabled={event.is_integrated}
-                            className={`flex-1 px-3 py-2 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 ${
-                              event.is_integrated
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                            }`}
-                            title={event.is_integrated ? 'Les jeux intégrés ne peuvent pas être modifiés' : 'Modifier'}
+                            onClick={() => openEditEventModal(event)}
+                            className="flex-1 px-3 py-2 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                            title={event.is_integrated ? 'Modifier limite et points' : 'Modifier'}
                           >
                             <Edit className="w-4 h-4" />
                             Modifier
@@ -3389,6 +3443,106 @@ useEffect(() => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modification Jeux Intégrés (Blackjack, Quiz) */}
+      {showIntegratedGameModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-lg w-full">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <Gamepad2 className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold">Modifier {integratedGameData.titre}</h3>
+                <p className="text-sm text-muted-foreground">Jeu intégré - Modification limitée</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Limite d'utilisation */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Limite d'utilisation (parties/jour) *
+                </label>
+                <input 
+                  type="number" 
+                  name="limite_utilisation"
+                  value={integratedGameData.limite_utilisation}
+                  onChange={handleIntegratedGameChange}
+                  min="1"
+                  max="20"
+                  placeholder="Ex: 3" 
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required 
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nombre de fois qu'un étudiant peut jouer par jour
+                </p>
+              </div>
+
+              {/* Valeur remise (points) */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Points gagnables *
+                </label>
+                <input 
+                  type="number" 
+                  name="valeur_remise"
+                  value={integratedGameData.valeur_remise}
+                  onChange={handleIntegratedGameChange}
+                  min="1"
+                  max="500"
+                  placeholder="Ex: 50" 
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required 
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Points de fidélité que l'étudiant peut gagner
+                </p>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <textarea 
+                  name="description"
+                  value={integratedGameData.description}
+                  onChange={handleIntegratedGameChange}
+                  placeholder="Description du jeu..." 
+                  rows="3" 
+                  className="w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                ></textarea>
+              </div>
+
+              {/* Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Note :</strong> Les jeux intégrés ne peuvent pas être supprimés. 
+                  Seuls la limite, les points et la description peuvent être modifiés.
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowIntegratedGameModal(false)}
+                  className="flex-1 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="button" 
+                  onClick={handleSaveIntegratedGame}
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Sauvegarder
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
