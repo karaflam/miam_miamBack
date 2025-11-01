@@ -16,8 +16,8 @@ return new class extends Migration
             $table->timestamps();
 
             // Foreign keys
-            $table->foreign('id_etudiant')->references('id_etudiant')->on('etudiant')->onDelete('cascade');
-            $table->foreign('id_evenement')->references('id_evenement')->on('evenement')->onDelete('cascade');
+            $table->foreign('id_etudiant')->references('id_utilisateur')->on('users')->onDelete('cascade');
+            $table->foreign('id_evenement')->references('id_evenement')->on('evenements')->onDelete('cascade');
             
             // Index pour optimiser les requêtes
             $table->index(['id_etudiant', 'id_evenement', 'date_participation']);
