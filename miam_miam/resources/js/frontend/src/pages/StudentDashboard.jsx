@@ -170,13 +170,43 @@ export default function StudentDashboard() {
     }
   };
 
-  // Fonction pour participer à un événement
+  // Identifier le type de jeu basé sur le code_promo
+  const identifyGame = (event) => {
+    if (!event || !event.code_promo) return null;
+    
+    const gameMapping = {
+      'BLACKJACK-INTEGRATED': 'blackjack',
+      'QUIZ-CULINAIRE-INTEGRATED': 'quiz'
+    };
+    
+    return gameMapping[event.code_promo] || null;
+  };
+
+  // Fonction pour participer à un événement ou lancer un jeu
   const handleParticipate = async (eventId) => {
     try {
+      // Trouver l'événement dans la liste
+      const event = events.find(e => e.id_evenement === eventId);
+      
+      if (!event) {
+        alert('Événement introuvable');
+        return;
+      }
+      
+      // Si c'est un jeu intégré, lancer le composant correspondant
+      if (event.is_integrated && event.type === 'jeu') {
+        const gameType = identifyGame(event);
+        if (gameType) {
+          setActiveGame(gameType);
+          return;
+        }
+      }
+      
+      // Pour les autres événements (promotions, événements normaux)
       const result = await eventService.participate(eventId);
       if (result.success) {
         alert(result.message || 'Participation enregistrée avec succès!');
-        fetchEvents(); // Recharger les événements
+        fetchEvents();
       } else {
         alert(result.error || 'Erreur lors de la participation');
       }
@@ -184,6 +214,13 @@ export default function StudentDashboard() {
       console.error('Erreur participation:', error);
       alert('Erreur lors de la participation');
     }
+  };
+  
+  // Fonction pour fermer le jeu
+  const handleCloseGame = () => {
+    setActiveGame(null);
+    // Rafraîchir les données utilisateur après le jeu
+    refreshUser();
   };
 
   // Charger le menu au montage et quand les filtres changent
@@ -572,6 +609,15 @@ export default function StudentDashboard() {
   }
 
   const canUseDiscount = user.loyaltyPoints >= 15
+
+  // Si un jeu est actif, afficher uniquement le jeu en plein écran
+  if (activeGame === 'blackjack') {
+    return <Blackjack onClose={handleCloseGame} />;
+  }
+  
+  if (activeGame === 'quiz') {
+    return <CulinaryQuiz onClose={handleCloseGame} />;
+  }
 
   return (
     <div className="min-h-screen bg-muted">
