@@ -137,11 +137,23 @@ class EvenementController extends Controller
     public function update(UpdateEvenementRequest $request, $id)
     {
         $item = Evenement::findOrFail($id);
-        $data = $request->validated();
-        if ($request->hasFile('affiche')) {
-            $path = $request->file('affiche')->store('evenements', 'public');
-            $data['url_affiche'] = Storage::url($path);
+        
+        // Protéger les jeux intégrés contre la modification complète
+        if ($item->is_integrated) {
+            // Seuls certains champs peuvent être modifiés pour les jeux intégrés
+            $allowedFields = ['limite_utilisation', 'valeur_remise', 'description'];
+            $data = array_intersect_key(
+                $request->validated(),
+                array_flip($allowedFields)
+            );
+        } else {
+            $data = $request->validated();
+            if ($request->hasFile('affiche')) {
+                $path = $request->file('affiche')->store('evenements', 'public');
+                $data['url_affiche'] = Storage::url($path);
+            }
         }
+        
         $item->update($data);
         return new EvenementResource($item);
     }
@@ -149,6 +161,15 @@ class EvenementController extends Controller
     public function destroy($id)
     {
         $item = Evenement::findOrFail($id);
+        
+        // Protéger les jeux intégrés contre la suppression
+        if ($item->is_integrated) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Les jeux intégrés (Blackjack, Quiz) ne peuvent pas être supprimés. Vous pouvez uniquement les activer/désactiver.'
+            ], 403);
+        }
+        
         $item->delete();
         return response()->json(['deleted' => true]);
     }

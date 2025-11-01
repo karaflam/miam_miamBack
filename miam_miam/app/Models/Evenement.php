@@ -24,6 +24,7 @@ class Evenement extends Model
         'active',
         'limite_utilisation', // Pour les jeux: nombre max d'essais PAR JOUR PAR UTILISATEUR
         'nombre_utilisation', // Compteur global total
+        'is_integrated', // Marqueur pour jeux intégrés (Blackjack, Quiz)
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class Evenement extends Model
         'date_fin' => 'date',
         'limite_utilisation' => 'integer',
         'nombre_utilisation' => 'integer',
+        'is_integrated' => 'boolean',
         'date_creation' => 'datetime',
     ];
 

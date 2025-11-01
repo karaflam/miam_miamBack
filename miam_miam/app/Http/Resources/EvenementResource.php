@@ -29,6 +29,7 @@ class EvenementResource extends JsonResource
             'active' => $this->active,
             'limite_utilisation' => $this->limite_utilisation,
             'nombre_utilisation' => $this->nombre_utilisation,
+            'is_integrated' => (bool) $this->is_integrated, // Marqueur pour jeux intégrés
             'date_creation' => $this->date_creation ? $this->date_creation->format('Y-m-d H:i:s') : null,
         ];
     }
