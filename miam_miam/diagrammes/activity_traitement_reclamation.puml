@@ -1,0 +1,149 @@
+@startuml Activity_Traitement_Reclamation
+title Diagramme d'Activité - Traitement d'une Réclamation
+
+|Étudiant|
+start
+:Accède à "Mes réclamations";
+:Clique "Nouvelle réclamation";
+
+:Remplit formulaire:
+- Objet
+- Message détaillé
+- Commande concernée (optionnel);
+
+:Soumet réclamation;
+
+|Backend|
+:Valide données;
+
+if (Données valides?) then (oui)
+  :Enregistre réclamation
+  (statut: "nouvelle");
+  
+  :Envoie notification
+  au staff;
+  
+  |Étudiant|
+  :Reçoit confirmation
+  + numéro réclamation;
+  
+  :Peut suivre statut
+  en temps réel;
+  
+  |Staff/Manager|
+  :Reçoit notification
+  nouvelle réclamation;
+  
+  :Consulte liste
+  réclamations;
+  
+  :Sélectionne réclamation
+  à traiter;
+  
+  :Lit détails:
+  - Objet
+  - Message client
+  - Historique commandes;
+  
+  if (Réclamation légitime?) then (oui)
+    :Change statut
+    "en_cours";
+    
+    |Étudiant|
+    :Reçoit notification
+    "Réclamation en cours
+    de traitement";
+    
+    |Staff/Manager|
+    :Analyse le problème;
+    
+    fork
+      :Vérifie commande
+      dans système;
+    fork again
+      :Consulte historique
+      client;
+    fork again
+      :Contacte cuisine
+      si nécessaire;
+    end fork
+    
+    :Détermine solution:
+    - Remboursement
+    - Avoir
+    - Geste commercial
+    - Explication;
+    
+    if (Remboursement nécessaire?) then (oui)
+      |Backend|
+      :Crédite compte client;
+      :Enregistre transaction;
+    else (non)
+      if (Geste commercial?) then (oui)
+        :Attribue points bonus;
+        :Crée code promo;
+      endif
+    endif
+    
+    |Staff/Manager|
+    :Rédige réponse
+    détaillée;
+    
+    :Soumet réponse;
+    
+    |Backend|
+    :Enregistre réponse;
+    :Change statut "résolue";
+    :Envoie email client;
+    
+    |Étudiant|
+    :Reçoit notification
+    + réponse;
+    
+    :Lit réponse;
+    
+    if (Satisfait?) then (oui)
+      :Clôture réclamation;
+      
+      |Backend|
+      :Marque comme traitée;
+      
+      stop
+      
+    else (non)
+      :Relance réclamation;
+      
+      |Staff/Manager|
+      :Reçoit relance;
+      :Traite à nouveau;
+      
+      note right
+        Escalade vers manager
+        si nécessaire
+      end note
+    endif
+    
+  else (non légitime)
+    :Rédige réponse
+    de rejet motivée;
+    
+    |Backend|
+    :Change statut "rejetée";
+    :Envoie notification;
+    
+    |Étudiant|
+    :Reçoit réponse
+    de rejet;
+    
+    stop
+  endif
+  
+else (non)
+  |Étudiant|
+  :Reçoit message d'erreur;
+  :Corrige formulaire;
+  
+  stop
+endif
+
+@enduml

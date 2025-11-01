@@ -1,0 +1,234 @@
+@startuml Component_Diagram
+title Diagramme de Composants - Architecture Mon Miam Miam
+
+' Configuration
+skinparam componentStyle rectangle
+
+package "Frontend (React Application)" {
+    
+    package "Pages" {
+        component [HomePage] as home
+        component [MenuPage] as menu
+        component [OrderPage] as order
+        component [ProfilePage] as profile
+        component [DashboardStudent] as dash_student
+        component [DashboardStaff] as dash_staff
+        component [DashboardAdmin] as dash_admin
+    }
+    
+    package "Components" {
+        component [Navbar] as navbar
+        component [Footer] as footer
+        component [MenuCard] as menucard
+        component [OrderCard] as ordercard
+        component [ProtectedRoute] as protected
+    }
+    
+    package "Context & State" {
+        component [AuthContext] as auth_context
+        component [CartContext] as cart_context
+    }
+    
+    package "Services" {
+        component [authService] as auth_service
+        component [orderService] as order_service
+        component [menuService] as menu_service
+        component [paymentService] as payment_service
+    }
+    
+    package "Utils" {
+        component [axiosConfig] as axios
+        component [helpers] as helpers
+    }
+}
+
+package "Backend (Laravel API)" {
+    
+    package "HTTP Layer" {
+        component [Routes] as routes
+        component [Middleware] as middleware
+        
+        package "Controllers" {
+            component [AuthController] as auth_ctrl
+            component [CommandeController] as commande_ctrl
+            component [MenuController] as menu_ctrl
+            component [PaiementController] as paiement_ctrl
+            component [ReclamationController] as reclamation_ctrl
+            component [StatistiqueController] as stat_ctrl
+        }
+    }
+    
+    package "Business Logic" {
+        component [AuthService] as auth_svc
+        component [FideliteService] as fidelite_svc
+        component [PaiementService] as paiement_svc
+        component [NotificationService] as notif_svc
+        component [ImageService] as image_svc
+    }
+    
+    package "Data Layer" {
+        component [Models] as models
+        component [Repositories] as repos
+        component [Observers] as observers
+    }
+    
+    package "Validation" {
+        component [FormRequests] as requests
+        component [Rules] as rules
+    }
+    
+    package "Resources" {
+        component [APIResources] as resources
+    }
+}
+
+package "Database Layer" {
+    database "MySQL Database" {
+        component [Users Table] as users_table
+        component [Commandes Table] as commandes_table
+        component [Menus Table] as menus_table
+        component [Paiements Table] as paiements_table
+    }
+    
+    database "Redis Cache" {
+        component [Session Store] as session
+        component [Cache Store] as cache
+        component [Queue Store] as queue
+    }
+}
+
+package "External Services" {
+    component [CinetPay API] as cinetpay
+    component [Email Service] as email
+    component [File Storage] as storage
+}
+
+' Relations Frontend
+home --> navbar
+home --> footer
+menu --> menucard
+order --> ordercard
+
+home --> auth_context
+menu --> cart_context
+order --> auth_context
+
+auth_service --> axios
+order_service --> axios
+menu_service --> axios
+payment_service --> axios
+
+' Relations Frontend -> Backend
+axios --> routes : HTTP/HTTPS
+
+' Relations Backend HTTP
+routes --> middleware
+middleware --> auth_ctrl
+middleware --> commande_ctrl
+middleware --> menu_ctrl
+middleware --> paiement_ctrl
+
+' Relations Controllers -> Services
+auth_ctrl --> auth_svc
+commande_ctrl --> fidelite_svc
+paiement_ctrl --> paiement_svc
+commande_ctrl --> notif_svc
+menu_ctrl --> image_svc
+
+' Relations Controllers -> Validation
+auth_ctrl --> requests
+commande_ctrl --> requests
+menu_ctrl --> requests
+
+' Relations Controllers -> Resources
+auth_ctrl --> resources
+commande_ctrl --> resources
+menu_ctrl --> resources
+
+' Relations Services -> Models
+auth_svc --> models
+fidelite_svc --> models
+paiement_svc --> models
+
+' Relations Models -> Database
+models --> users_table
+models --> commandes_table
+models --> menus_table
+models --> paiements_table
+
+' Relations Services -> External
+paiement_svc --> cinetpay
+notif_svc --> email
+image_svc --> storage
+
+' Relations Cache
+auth_svc --> session
+models --> cache
+notif_svc --> queue
+
+' Relations Observers
+models --> observers
+observers --> notif_svc
+
+note right of auth_context
+    **Gestion d'état global:**
+    - User connecté
+    - Token JWT
+    - Rôle utilisateur
+    - Méthodes login/logout
+end note
+
+note right of axios
+    **Configuration:**
+    - Base URL API
+    - Intercepteurs requêtes
+    - Gestion erreurs
+    - Token automatique
+end note
+
+note right of middleware
+    **Middleware Stack:**
+    - CORS
+    - Authenticate (Sanctum)
+    - CheckRole
+    - ThrottleRequests
+    - ValidateSignature
+end note
+
+note right of auth_svc
+    **Responsabilités:**
+    - Inscription utilisateur
+    - Authentification
+    - Génération tokens
+    - Vérification email
+end note
+
+note right of fidelite_svc
+    **Règles métier:**
+    - 1000 FCFA = 1 point
+    - Parrain: +50 points
+    - Filleul: +25 points
+    - Traçabilité complète
+end note
+
+note right of models
+    **Eloquent Models:**
+    - User
+    - Commande
+    - Menu
+    - Paiement
+    - Reclamation
+    - Evenement
+    - Parrainage
+    - SuiviPoint
+end note
+
+note bottom of cinetpay
+    **Intégration:**
+    - Initialisation paiement
+    - Webhook callback
+    - Vérification statut
+    - Gestion erreurs
+end note
+
+@enduml

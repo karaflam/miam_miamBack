@@ -1,0 +1,323 @@
+@startuml Class_Diagram_MonMiamMiam
+title Diagramme de Classes - Mon Miam Miam
+
+' Configuration
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor<<Entity>> LightYellow
+    BackgroundColor<<Service>> LightBlue
+    BackgroundColor<<Controller>> LightGreen
+}
+
+' Entités principales
+class User <<Entity>> {
+    - id_user: int
+    - nom: string
+    - prenom: string
+    - email: string
+    - password: string
+    - telephone: string
+    - adresse: string
+    - role: enum
+    - solde: decimal
+    - points_fidelite: int
+    - code_parrainage: string
+    - email_verified_at: timestamp
+    --
+    + getNomComplet(): string
+    + hasRole(role: string): bool
+    + incrementPoints(points: int): void
+    + decrementPoints(points: int): void
+    + rechargerSolde(montant: decimal): void
+}
+
+class Commande <<Entity>> {
+    - id_commande: int
+    - numero_commande: string
+    - id_user: int
+    - date_commande: timestamp
+    - montant_total: decimal
+    - statut: enum
+    - type_livraison: enum
+    - heure_arrivee: time
+    - adresse_livraison: string
+    - commentaire_client: string
+    --
+    + genererNumeroCommande(): string
+    + calculerMontantTotal(): decimal
+    + estAnnulable(): bool
+    + changerStatut(statut: string): void
+}
+
+class DetailCommande <<Entity>> {
+    - id_detail_commande: int
+    - id_commande: int
+    - id_article: int
+    - quantite: int
+    - prix_unitaire: decimal
+    - sous_total: decimal
+    --
+    + calculerSousTotal(): decimal
+}
+
+class Menu <<Entity>> {
+    - id_article: int
+    - nom: string
+    - description: string
+    - prix: decimal
+    - image: string
+    - id_categorie: int
+    - disponible: bool
+    - temps_preparation: int
+    - valeur_nutritionnelle: string
+    - ingredients: string
+    --
+    + getImageUrl(): string
+    + estDisponible(): bool
+    + marquerIndisponible(): void
+}
+
+class CategorieMenu <<Entity>> {
+    - id_categorie: int
+    - nom: string
+    - description: string
+    - image: string
+    --
+    + getMenus(): Collection
+}
+
+class Stock <<Entity>> {
+    - id_stock: int
+    - id_article: int
+    - quantite: int
+    - unite: string
+    - date_mise_a_jour: timestamp
+    --
+    + incrementer(quantite: int): void
+    + decrementer(quantite: int): void
+    + estBas(): bool
+}
+
+class Paiement <<Entity>> {
+    - id_paiement: int
+    - id_commande: int
+    - id_user: int
+    - reference: string
+    - montant: decimal
+    - methode: enum
+    - statut: enum
+    - transaction_id: string
+    - date_paiement: timestamp
+    --
+    + estReussi(): bool
+    + rembourser(): void
+}
+
+class Reclamation <<Entity>> {
+    - id_reclamation: int
+    - id_user: int
+    - objet: string
+    - message: string
+    - statut: enum
+    - reponse: string
+    - date_reponse: timestamp
+    --
+    + repondre(reponse: string): void
+    + resoudre(): void
+    + rejeter(raison: string): void
+}
+
+class Evenement <<Entity>> {
+    - id_evenement: int
+    - titre: string
+    - description: string
+    - type: enum
+    - code_promo: string
+    - valeur_remise: decimal
+    - type_remise: enum
+    - date_debut: date
+    - date_fin: date
+    - active: enum
+    - affiche: string
+    - recompense_points: int
+    --
+    + estActif(): bool
+    + calculerRemise(montant: decimal): decimal
+    + activer(): void
+    + desactiver(): void
+}
+
+class Parrainage <<Entity>> {
+    - id_parrainage: int
+    - id_parrain: int
+    - id_filleul: int
+    - code_parrainage: string
+    - date_parrainage: timestamp
+    - statut: enum
+    --
+    + valider(): void
+}
+
+class SuiviPoint <<Entity>> {
+    - id_suivi_point: int
+    - id_user: int
+    - type_transaction: enum
+    - points: int
+    - source: enum
+    - description: string
+    - id_reference: int
+    - date_transaction: timestamp
+}
+
+class Employe <<Entity>> {
+    - id_employe: int
+    - id_user: int
+    - poste: enum
+    - date_embauche: date
+    - salaire: decimal
+    - statut_emploi: enum
+    --
+    + estActif(): bool
+}
+
+class Activite <<Entity>> {
+    - id_activite: int
+    - id_employe: int
+    - type_activite: enum
+    - description: string
+    - ip_address: string
+    - date_activite: timestamp
+}
+
+' Services
+class AuthService <<Service>> {
+    + register(data: array): User
+    + login(email: string, password: string): array
+    + logout(user: User): void
+    + verifyEmail(token: string): bool
+}
+
+class FideliteService <<Service>> {
+    - RATIO_POINTS: int = 1000
+    --
+    + attribuerPointsCommande(commande: Commande): int
+    + utiliserPoints(user: User, points: int): bool
+    + attribuerPointsParrainage(parrain: User, filleul: User): void
+    + calculerPoints(montant: decimal): int
+}
+
+class PaiementService <<Service>> {
+    + initialiserPaiement(commande: Commande): array
+    + verifierPaiement(transactionId: string): bool
+    + traiterCallback(data: array): void
+    + rembourser(paiement: Paiement): bool
+}
+
+class NotificationService <<Service>> {
+    + notifierNouvelleCommande(commande: Commande): void
+    + notifierChangementStatut(commande: Commande): void
+    + notifierParrainage(parrain: User, filleul: User): void
+    + notifierStockBas(article: Menu): void
+}
+
+class ImageService <<Service>> {
+    + upload(file: UploadedFile, path: string): string
+    + resize(image: string, width: int, height: int): void
+    + delete(path: string): bool
+}
+
+' Controllers
+class AuthController <<Controller>> {
+    - authService: AuthService
+    --
+    + register(request: RegisterRequest): JsonResponse
+    + login(request: LoginRequest): JsonResponse
+    + logout(request: Request): JsonResponse
+    + me(request: Request): JsonResponse
+}
+
+class CommandeController <<Controller>> {
+    - fideliteService: FideliteService
+    --
+    + index(request: Request): JsonResponse
+    + store(request: CreateCommandeRequest): JsonResponse
+    + show(id: int): JsonResponse
+    + updateStatus(request: Request, id: int): JsonResponse
+}
+
+class MenuController <<Controller>> {
+    - imageService: ImageService
+    --
+    + index(request: Request): JsonResponse
+    + store(request: CreateMenuRequest): JsonResponse
+    + update(request: UpdateMenuRequest, id: int): JsonResponse
+    + destroy(id: int): JsonResponse
+}
+
+class PaiementController <<Controller>> {
+    - paiementService: PaiementService
+    --
+    + initiate(request: Request): JsonResponse
+    + callback(request: Request): JsonResponse
+    + verify(transactionId: string): JsonResponse
+}
+
+' Relations entre entités
+User "1" -- "0..*" Commande : passe >
+User "1" -- "0..*" Paiement : effectue >
+User "1" -- "0..*" Reclamation : dépose >
+User "1" -- "0..*" SuiviPoint : possède >
+User "1" -- "0..*" Parrainage : parraine >
+User "1" -- "0..1" Employe : est >
+
+Commande "1" -- "1..*" DetailCommande : contient >
+Commande "1" -- "0..1" Paiement : est réglée par >
+
+Menu "1" -- "0..*" DetailCommande : est commandé dans >
+Menu "1" -- "0..1" Stock : possède >
+Menu "0..*" -- "1" CategorieMenu : appartient à >
+
+Evenement "1" -- "0..*" Parrainage : génère >
+
+Employe "1" -- "0..*" Activite : effectue >
+
+' Relations Services-Entités
+FideliteService ..> User : utilise
+FideliteService ..> Commande : utilise
+FideliteService ..> SuiviPoint : crée
+
+PaiementService ..> Paiement : gère
+PaiementService ..> Commande : utilise
+
+NotificationService ..> User : notifie
+NotificationService ..> Commande : utilise
+
+' Relations Controllers-Services
+AuthController --> AuthService : utilise
+CommandeController --> FideliteService : utilise
+MenuController --> ImageService : utilise
+PaiementController --> PaiementService : utilise
+
+' Relations Controllers-Entités
+AuthController ..> User : gère
+CommandeController ..> Commande : gère
+MenuController ..> Menu : gère
+PaiementController ..> Paiement : gère
+
+note right of FideliteService
+    Règle métier:
+    1000 FCFA = 1 point
+    Parrain: +50 points
+    Filleul: +25 points
+end note
+
+note bottom of Commande
+    Statuts possibles:
+    - en_attente
+    - en_preparation
+    - prete
+    - livree
+    - annulee
+end note
+
+@enduml

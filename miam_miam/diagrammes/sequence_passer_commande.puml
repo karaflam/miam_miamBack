@@ -1,0 +1,145 @@
+@startuml Sequence_Passer_Commande
+title Diagramme de Séquence - Passer une Commande
+
+actor "Étudiant" as etudiant
+participant "Frontend\nReact" as frontend
+participant "API Laravel\nBackend" as backend
+participant "Base de\nDonnées" as bdd
+participant "CinetPay\nAPI" as cinetpay
+participant "Service\nEmail" as email
+
+autonumber
+
+== Consultation du Menu ==
+etudiant -> frontend : Accède à la page menu
+frontend -> backend : GET /api/menu
+backend -> bdd : SELECT * FROM menus\nWHERE disponible = true
+bdd --> backend : Liste des articles
+backend --> frontend : JSON articles disponibles
+frontend --> etudiant : Affiche le menu
+
+== Sélection des Articles ==
+etudiant -> frontend : Sélectionne articles\n(quantités)
+frontend -> frontend : Calcule montant total
+frontend --> etudiant : Affiche panier\n(montant: 5000 FCFA)
+
+== Vérification Code Promo (Optionnel) ==
+opt Code promo saisi
+    etudiant -> frontend : Saisit code promo
+    frontend -> backend : POST /api/evenements/verify-promo\n{code: "PROMO2024"}
+    backend -> bdd : SELECT * FROM evenements\nWHERE code_promo = 'PROMO2024'\nAND active = 'oui'
+    alt Code valide
+        bdd --> backend : Données promo (10% réduction)
+        backend --> frontend : {valide: true, remise: 10%}
+        frontend -> frontend : Applique réduction\n(nouveau montant: 4500 FCFA)
+        frontend --> etudiant : Montant réduit affiché
+    else Code invalide
+        bdd --> backend : Aucun résultat
+        backend --> frontend : {valide: false}
+        frontend --> etudiant : Message erreur
+    end
+end
+
+== Passage de la Commande ==
+etudiant -> frontend : Valide commande\n(type: livraison, heure: 13h00)
+frontend -> backend : POST /api/commandes\n{articles, type_livraison,\nheure_arrivee, adresse}
+
+activate backend
+backend -> backend : Validation données\n(CreateCommandeRequest)
+
+alt Validation OK
+    backend -> bdd : BEGIN TRANSACTION
+    
+    backend -> bdd : INSERT INTO commandes\n(numero, id_user, montant_total,\nstatut: 'en_attente')
+    bdd --> backend : id_commande = 123
+    
+    loop Pour chaque article
+        backend -> bdd : INSERT INTO details_commande\n(id_commande, id_article,\nquantite, prix_unitaire)
+        backend -> bdd : UPDATE stocks\nSET quantite = quantite - X\nWHERE id_article = Y
+    end
+    
+    opt Code promo utilisé
+        backend -> bdd : INSERT INTO usage_promo\n(id_user, id_evenement,\ncode_utilise, montant_economise)
+    end
+    
+    backend -> bdd : COMMIT TRANSACTION
+    
+    == Processus de Paiement ==
+    backend -> cinetpay : POST /payment/initialize\n{amount: 4500,\ntransaction_id: "CMD-20241101-0123"}
+    
+    activate cinetpay
+    cinetpay -> cinetpay : Génère lien paiement
+    cinetpay --> backend : {payment_url, payment_token}
+    deactivate cinetpay
+    
+    backend -> bdd : INSERT INTO paiements\n(id_commande, montant,\nstatut: 'en_attente',\ntransaction_id)
+    
+    backend --> frontend : {success: true,\ncommande_id: 123,\npayment_url}
+    deactivate backend
+    
+    frontend --> etudiant : Redirige vers\npage paiement CinetPay
+    
+    == Paiement Mobile Money ==
+    etudiant -> cinetpay : Effectue paiement\n(Mobile Money)
+    cinetpay -> cinetpay : Traite paiement
+    
+    alt Paiement réussi
+        cinetpay -> backend : Webhook callback\nPOST /api/paiements/callback\n{status: 'success',\ntransaction_id}
+        
+        activate backend
+        backend -> bdd : UPDATE paiements\nSET statut = 'paye',\ndate_paiement = NOW()\nWHERE transaction_id = X
+        
+        backend -> bdd : UPDATE commandes\nSET statut = 'en_attente'\nWHERE id_commande = 123
+        
+        ' Attribution points de fidélité
+        backend -> backend : Calcule points\n(4500 FCFA / 1000 = 4 points)
+        backend -> bdd : UPDATE users\nSET points_fidelite = points_fidelite + 4
+        backend -> bdd : INSERT INTO suivi_points\n(id_user, type: 'gain',\npoints: 4, source: 'commande')
+        
+        ' Notification email
+        backend -> email : Envoie confirmation\ncommande + reçu
+        email --> etudiant : Email confirmation
+        
+        ' Notification staff
+        backend -> email : Notifie employés\nnouvelle commande
+        
+        backend --> cinetpay : {status: 'received'}
+        deactivate backend
+        
+        cinetpay --> etudiant : Confirmation paiement
+        etudiant -> frontend : Retour application
+        frontend -> backend : GET /api/commandes/123
+        backend -> bdd : SELECT commande\nWITH details, paiement
+        bdd --> backend : Données complètes
+        backend --> frontend : Commande confirmée
+        frontend --> etudiant : Affiche confirmation\n+ numéro commande\n+ points gagnés
+        
+    else Paiement échoué
+        cinetpay -> backend : Webhook callback\n{status: 'failed'}
+        backend -> bdd : UPDATE paiements\nSET statut = 'echec'
+        backend -> bdd : UPDATE commandes\nSET statut = 'annulee'
+        backend -> bdd : ROLLBACK stocks
+        cinetpay --> etudiant : Message erreur
+        backend --> frontend : {error: 'Paiement échoué'}
+        frontend --> etudiant : Message erreur +\noption réessayer
+    end
+    
+else Validation échouée
+    backend --> frontend : {error: 'Données invalides',\ndetails: [...]}
+    frontend --> etudiant : Affiche erreurs
+end
+
+== Suivi de la Commande ==
+note over etudiant, frontend
+    L'étudiant peut maintenant suivre
+    sa commande en temps réel
+end note
+
+etudiant -> frontend : Accède "Mes commandes"
+frontend -> backend : GET /api/commandes?statut=en_cours
+backend -> bdd : SELECT commandes\nWHERE id_user = X\nAND statut IN ('en_attente',\n'en_preparation', 'prete')
+bdd --> backend : Liste commandes
+backend --> frontend : JSON commandes
+frontend --> etudiant : Affiche statut:\n"En attente de préparation"
+
+@enduml

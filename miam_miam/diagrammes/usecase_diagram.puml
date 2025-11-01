@@ -1,0 +1,189 @@
+@startuml Diagramme_Cas_Utilisation_MonMiamMiam
+title Diagramme de Cas d'Utilisation - Mon Miam Miam
+
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Étudiant" as etudiant
+actor "Employé" as employe
+actor "Manager" as manager
+actor "Administrateur" as admin
+actor "CinetPay API" as cinetpay
+actor "Système Email" as email
+
+rectangle "Système Mon Miam Miam" {
+  
+  package "Gestion Compte" {
+    usecase "S'inscrire" as UC1
+    usecase "Se connecter" as UC2
+    usecase "Modifier profil" as UC3
+    usecase "Consulter solde" as UC4
+    usecase "Recharger compte" as UC5
+  }
+  
+  package "Gestion Menu" {
+    usecase "Consulter menu" as UC6
+    usecase "Rechercher article" as UC7
+    usecase "Créer article" as UC8
+    usecase "Modifier article" as UC9
+    usecase "Supprimer article" as UC10
+    usecase "Gérer catégories" as UC11
+  }
+  
+  package "Gestion Commandes" {
+    usecase "Passer commande" as UC12
+    usecase "Suivre commande" as UC13
+    usecase "Annuler commande" as UC14
+    usecase "Consulter historique" as UC15
+    usecase "Voir commandes en cours" as UC16
+    usecase "Mettre à jour statut" as UC17
+    usecase "Valider préparation" as UC18
+  }
+  
+  package "Gestion Paiements" {
+    usecase "Effectuer paiement" as UC19
+    usecase "Vérifier paiement" as UC20
+    usecase "Consulter transactions" as UC21
+    usecase "Rembourser" as UC22
+  }
+  
+  package "Fidélité & Parrainage" {
+    usecase "Consulter points" as UC23
+    usecase "Utiliser points" as UC24
+    usecase "Générer code parrain" as UC25
+    usecase "Parrainer ami" as UC26
+    usecase "Voir filleuls" as UC27
+  }
+  
+  package "Réclamations" {
+    usecase "Déposer réclamation" as UC28
+    usecase "Suivre réclamation" as UC29
+    usecase "Traiter réclamation" as UC30
+    usecase "Répondre réclamation" as UC31
+  }
+  
+  package "Événements & Promos" {
+    usecase "Consulter événements" as UC32
+    usecase "Participer événement" as UC33
+    usecase "Utiliser code promo" as UC34
+    usecase "Créer événement" as UC35
+    usecase "Gérer promotions" as UC36
+  }
+  
+  package "Statistiques & Rapports" {
+    usecase "Voir stats journalières" as UC37
+    usecase "Voir dashboard complet" as UC38
+    usecase "Exporter rapports" as UC39
+    usecase "Analyser CA" as UC40
+  }
+  
+  package "Gestion Stocks" {
+    usecase "Consulter stocks" as UC41
+    usecase "Mettre à jour stock" as UC42
+    usecase "Alertes stock bas" as UC43
+  }
+  
+  package "Administration" {
+    usecase "Gérer utilisateurs" as UC44
+    usecase "Gérer employés" as UC45
+    usecase "Configurer système" as UC46
+    usecase "Consulter logs" as UC47
+  }
+}
+
+' Relations Étudiant
+etudiant --> UC1
+etudiant --> UC2
+etudiant --> UC3
+etudiant --> UC4
+etudiant --> UC5
+etudiant --> UC6
+etudiant --> UC7
+etudiant --> UC12
+etudiant --> UC13
+etudiant --> UC14
+etudiant --> UC15
+etudiant --> UC19
+etudiant --> UC21
+etudiant --> UC23
+etudiant --> UC24
+etudiant --> UC25
+etudiant --> UC26
+etudiant --> UC27
+etudiant --> UC28
+etudiant --> UC29
+etudiant --> UC32
+etudiant --> UC33
+etudiant --> UC34
+
+' Relations Employé
+employe --> UC2
+employe --> UC6
+employe --> UC16
+employe --> UC17
+employe --> UC18
+employe --> UC30
+employe --> UC31
+employe --> UC37
+employe --> UC41
+employe --> UC42
+
+' Relations Manager
+manager --> UC2
+manager --> UC8
+manager --> UC9
+manager --> UC10
+manager --> UC11
+manager --> UC16
+manager --> UC17
+manager --> UC18
+manager --> UC22
+manager --> UC30
+manager --> UC31
+manager --> UC37
+manager --> UC38
+manager --> UC41
+manager --> UC42
+manager --> UC43
+
+' Relations Admin
+admin --> UC2
+admin --> UC8
+admin --> UC9
+admin --> UC10
+admin --> UC11
+admin --> UC35
+admin --> UC36
+admin --> UC38
+admin --> UC39
+admin --> UC40
+admin --> UC44
+admin --> UC45
+admin --> UC46
+admin --> UC47
+
+' Relations systèmes externes
+UC19 ..> cinetpay : <<include>>
+UC20 ..> cinetpay : <<include>>
+UC2 ..> email : <<include>>
+UC12 ..> email : <<include>>
+UC17 ..> email : <<include>>
+UC31 ..> email : <<include>>
+
+' Extensions
+UC12 ..> UC19 : <<include>>
+UC12 ..> UC34 : <<extend>>
+UC19 ..> UC20 : <<include>>
+UC17 ..> UC43 : <<extend>>
+
+note right of UC12
+  Une commande nécessite
+  obligatoirement un paiement
+end note
+
+note right of UC34
+  Le code promo est optionnel
+  lors d'une commande
+end note
+
+@enduml
